@@ -483,6 +483,11 @@ export default {
         requests.value = requests.value.filter(r => r.uuid !== requestToDelete.value)
         deleteModalVisible.value = false
         requestToDelete.value = null
+
+        // Refresh the image library to reflect deleted images
+        offset.value = 0
+        hasMore.value = true
+        await fetchImages()
       } catch (error) {
         console.error('Error deleting request:', error)
         alert('Failed to delete request. Please try again.')
