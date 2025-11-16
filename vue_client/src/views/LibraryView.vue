@@ -4,28 +4,30 @@
       <h2>{{ title }}</h2>
 
       <div class="header-controls">
-        <!-- Active Filters -->
-        <div v-if="filters.requestId || filters.keywords" class="filter-chips">
-          <div v-if="filters.requestId" class="filter-chip">
-            <span>Request: {{ filters.requestId.substring(0, 8) }}</span>
-            <button @click="clearFilter('requestId')" class="chip-remove">×</button>
+        <div class="right-controls">
+          <!-- Active Filters -->
+          <div v-if="filters.requestId || filters.keywords" class="filter-chips">
+            <div v-if="filters.requestId" class="filter-chip">
+              <span>Request: {{ filters.requestId.substring(0, 8) }}</span>
+              <button @click="clearFilter('requestId')" class="chip-remove">×</button>
+            </div>
+            <div v-if="filters.keywords" class="filter-chip">
+              <span>{{ filters.keywords }}</span>
+              <button @click="clearFilter('keywords')" class="chip-remove">×</button>
+            </div>
           </div>
-          <div v-if="filters.keywords" class="filter-chip">
-            <span>{{ filters.keywords }}</span>
-            <button @click="clearFilter('keywords')" class="chip-remove">×</button>
-          </div>
-        </div>
 
-        <!-- Search Bar -->
-        <div class="search-bar">
-          <input
-            type="text"
-            v-model="searchQuery"
-            @keyup.enter="applySearch"
-            placeholder="Search images..."
-            class="search-input"
-          />
-          <button @click="applySearch" class="btn-search">Search</button>
+          <!-- Search Bar -->
+          <div class="search-bar">
+            <input
+              type="text"
+              v-model="searchQuery"
+              @keyup.enter="applySearch"
+              placeholder="Search images..."
+              class="search-input"
+            />
+            <button @click="applySearch" class="btn-search">Search</button>
+          </div>
         </div>
       </div>
     </div>
@@ -391,11 +393,17 @@ export default {
   min-width: 0;
 }
 
+.right-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-left: auto;
+}
+
 .filter-chips {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
-  margin-left: auto;
 }
 
 .filter-chip {
