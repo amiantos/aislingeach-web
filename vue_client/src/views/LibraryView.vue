@@ -172,6 +172,8 @@ export default {
     const deleteModalVisible = ref(false)
     const requestToDelete = ref(null)
     let pollInterval = null
+    let imagesPollInterval = null
+    const lastImageCheck = ref(null)
 
     // Inject functions from App.vue
     const loadSettingsFromImage = inject('loadSettingsFromImage')
@@ -408,6 +410,48 @@ export default {
       }
     }
 
+    const checkNewImages = async () => {
+      // Don't check for new images if we're filtering (only check on main library view)
+      if (filters.value.requestId || filters.value.keywords) {
+        return
+      }
+
+      try {
+        // Fetch the latest images
+        const response = await imagesApi.getAll(20, 0)
+        const newImages = response.data
+
+        if (newImages.length === 0) return
+
+        // Find images we don't have yet
+        const existingIds = new Set(images.value.map(img => img.uuid))
+        const trulyNewImages = newImages.filter(img => !existingIds.has(img.uuid))
+
+        if (trulyNewImages.length > 0) {
+          // Prepend new images to the list
+          images.value = [...trulyNewImages, ...images.value]
+          console.log(`Added ${trulyNewImages.length} new image(s) to library`)
+        }
+      } catch (error) {
+        console.error('Error checking for new images:', error)
+      }
+    }
+
+    const startImagePolling = () => {
+      if (imagesPollInterval) return // Already polling
+
+      console.log('Starting image polling (active requests detected)')
+      imagesPollInterval = setInterval(checkNewImages, 3000)
+    }
+
+    const stopImagePolling = () => {
+      if (imagesPollInterval) {
+        console.log('Stopping image polling (no active requests)')
+        clearInterval(imagesPollInterval)
+        imagesPollInterval = null
+      }
+    }
+
     const viewRequestImages = (requestId) => {
       // Set the request filter in localStorage
       const newFilters = {
@@ -455,6 +499,19 @@ export default {
       }
     }
 
+    // Watch queue status to start/stop image polling
+    watch(queueStatus, (newStatus) => {
+      if (!newStatus) return
+
+      const hasActivity = newStatus.active > 0 || newStatus.pendingRequests > 0
+
+      if (hasActivity) {
+        startImagePolling()
+      } else {
+        stopImagePolling()
+      }
+    })
+
     onMounted(async () => {
       loadFilters()
       await fetchImages()
@@ -477,6 +534,9 @@ export default {
     onUnmounted(() => {
       if (pollInterval) {
         clearInterval(pollInterval)
+      }
+      if (imagesPollInterval) {
+        clearInterval(imagesPollInterval)
       }
       window.removeEventListener('scroll', handleScroll)
       window.removeEventListener('storage', handleStorageChange)
