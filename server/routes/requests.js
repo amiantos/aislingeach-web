@@ -1,0 +1,72 @@
+import express from 'express';
+import { HordeRequest } from '../db/models.js';
+import queueManager from '../services/queueManager.js';
+
+const router = express.Router();
+
+// Get all requests
+router.get('/', (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 100;
+    const requests = HordeRequest.findAll(limit);
+    res.json(requests);
+  } catch (error) {
+    console.error('Error fetching requests:', error);
+    res.status(500).json({ error: 'Failed to fetch requests' });
+  }
+});
+
+// Get a single request
+router.get('/:id', (req, res) => {
+  try {
+    const request = HordeRequest.findById(req.params.id);
+    if (!request) {
+      return res.status(404).json({ error: 'Request not found' });
+    }
+    res.json(request);
+  } catch (error) {
+    console.error('Error fetching request:', error);
+    res.status(500).json({ error: 'Failed to fetch request' });
+  }
+});
+
+// Create a new request
+router.post('/', (req, res) => {
+  try {
+    const { prompt, params } = req.body;
+
+    if (!prompt || !params) {
+      return res.status(400).json({ error: 'Missing required fields: prompt, params' });
+    }
+
+    const request = queueManager.addRequest({ prompt, params });
+    res.status(201).json(request);
+  } catch (error) {
+    console.error('Error creating request:', error);
+    res.status(500).json({ error: 'Failed to create request' });
+  }
+});
+
+// Delete a request
+router.delete('/:id', (req, res) => {
+  try {
+    HordeRequest.delete(req.params.id);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting request:', error);
+    res.status(500).json({ error: 'Failed to delete request' });
+  }
+});
+
+// Get queue status
+router.get('/queue/status', (req, res) => {
+  try {
+    const status = queueManager.getStatus();
+    res.json(status);
+  } catch (error) {
+    console.error('Error fetching queue status:', error);
+    res.status(500).json({ error: 'Failed to fetch queue status' });
+  }
+});
+
+export default router;

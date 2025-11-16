@@ -1,0 +1,104 @@
+import Database from 'better-sqlite3';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import fs from 'fs';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Ensure data directory exists
+const dataDir = join(__dirname, '../../data');
+const imagesDir = join(dataDir, 'images');
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+}
+if (!fs.existsSync(imagesDir)) {
+  fs.mkdirSync(imagesDir, { recursive: true });
+}
+
+const dbPath = join(dataDir, 'aislingeach.db');
+const db = new Database(dbPath);
+db.pragma('journal_mode = WAL');
+
+// Initialize database schema
+function initDatabase() {
+  // HordeRequest table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS horde_requests (
+      uuid TEXT PRIMARY KEY,
+      date_created INTEGER NOT NULL,
+      prompt TEXT,
+      full_request TEXT,
+      status TEXT,
+      message TEXT,
+      n INTEGER DEFAULT 0,
+      queue_position INTEGER DEFAULT 0,
+      wait_time INTEGER DEFAULT 0,
+      total_kudos_cost INTEGER DEFAULT 0
+    )
+  `);
+
+  // GeneratedImage table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS generated_images (
+      uuid TEXT PRIMARY KEY,
+      request_id TEXT,
+      date_created INTEGER NOT NULL,
+      date_trashed INTEGER,
+      backend TEXT,
+      prompt_simple TEXT,
+      full_request TEXT,
+      full_response TEXT,
+      image_path TEXT,
+      thumbnail_path TEXT,
+      is_favorite INTEGER DEFAULT 0,
+      is_hidden INTEGER DEFAULT 0,
+      is_trashed INTEGER DEFAULT 0,
+      FOREIGN KEY (request_id) REFERENCES horde_requests(uuid)
+    )
+  `);
+
+  // HordePendingDownload table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS horde_pending_downloads (
+      uuid TEXT PRIMARY KEY,
+      request_id TEXT,
+      uri TEXT,
+      full_request TEXT,
+      full_response TEXT,
+      FOREIGN KEY (request_id) REFERENCES horde_requests(uuid)
+    )
+  `);
+
+  // KeywordAlbum table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS keyword_albums (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT,
+      keywords TEXT
+    )
+  `);
+
+  // Create indexes
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_images_date_created
+    ON generated_images(date_created DESC)
+  `);
+
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_images_request_id
+    ON generated_images(request_id)
+  `);
+
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_requests_date_created
+    ON horde_requests(date_created DESC)
+  `);
+
+  console.log('Database initialized at', dbPath);
+}
+
+initDatabase();
+
+export default db;
+export { imagesDir };
