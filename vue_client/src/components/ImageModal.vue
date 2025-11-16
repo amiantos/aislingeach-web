@@ -204,7 +204,6 @@ export default {
 .image-container {
   flex: 1;
   display: flex;
-  align-items: center;
   justify-content: center;
   background: #000;
   overflow: hidden;
