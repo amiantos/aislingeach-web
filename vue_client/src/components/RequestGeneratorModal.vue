@@ -752,11 +752,12 @@ export default {
     onMounted(async () => {
       await fetchModels()
 
-      // Load initial settings from props if provided, otherwise load last used settings
+      // Always load last used settings first to restore worker preferences
+      await loadLastUsedSettings()
+
+      // Then load initial settings from props if provided (this will override generation params but not worker prefs)
       if (props.initialSettings) {
         loadSettings(props.initialSettings, props.includeSeed)
-      } else {
-        await loadLastUsedSettings()
       }
 
       // Only estimate if we have a model after loading
