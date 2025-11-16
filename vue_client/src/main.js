@@ -1,7 +1,6 @@
 import { createApp } from 'vue'
 import { createRouter, createWebHistory } from 'vue-router'
 import App from './App.vue'
-import RequestsView from './views/RequestsView.vue'
 import LibraryView from './views/LibraryView.vue'
 
 const router = createRouter({
@@ -9,11 +8,6 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      name: 'requests',
-      component: RequestsView
-    },
-    {
-      path: '/library',
       name: 'library',
       component: LibraryView
     },

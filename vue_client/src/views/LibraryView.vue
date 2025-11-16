@@ -1,7 +1,12 @@
 <template>
   <div class="library-view">
     <div class="header">
-      <h2>{{ title }}</h2>
+      <div class="header-left">
+        <h2>Aislingeach</h2>
+        <button @click="openSettings" class="btn-settings-icon" title="Settings">
+          ⚙
+        </button>
+      </div>
 
       <div class="header-controls">
         <div class="right-controls">
@@ -31,6 +36,49 @@
         </div>
       </div>
     </div>
+
+    <!-- Requests Panel Toggle Tab -->
+    <div class="panel-tab" @click="togglePanel" :class="{ open: isPanelOpen }">
+      <div class="tab-content">
+        <span class="tab-arrow">{{ isPanelOpen ? '▲' : '▼' }}</span>
+        <div v-if="queueStatus" class="queue-status">
+          <span class="status-dot" :class="{ active: queueStatus.isProcessing }"></span>
+          <span>{{ queueStatus.active }}/{{ queueStatus.maxActive }} active</span>
+          <span class="divider">•</span>
+          <span>{{ queueStatus.pendingRequests }} pending</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Requests Panel -->
+    <div class="requests-panel" :class="{ open: isPanelOpen }">
+      <div class="panel-header">
+        <h3>Requests</h3>
+      </div>
+
+      <div class="panel-content">
+        <div v-if="requests.length === 0" class="panel-empty-state">
+          <p>No requests yet</p>
+          <p class="hint">Click the + button to generate your first AI image</p>
+        </div>
+
+        <div v-else class="requests-grid">
+          <RequestCard
+            v-for="request in requests"
+            :key="request.uuid"
+            :request="request"
+            @view-images="viewRequestImages"
+            @delete="showDeleteModal"
+          />
+        </div>
+      </div>
+    </div>
+
+    <DeleteRequestModal
+      v-if="deleteModalVisible"
+      @close="deleteModalVisible = false"
+      @delete="confirmDelete"
+    />
 
     <div v-if="loading && images.length === 0" class="loading">
       Loading images...
@@ -75,19 +123,28 @@
       @navigate="navigateImage"
       @load-settings="handleLoadSettings"
     />
+
+    <!-- Floating Action Button -->
+    <button @click="openNewRequest" class="fab" title="New Request">
+      +
+    </button>
   </div>
 </template>
 
 <script>
 import { ref, computed, onMounted, onUnmounted, watch, inject } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { imagesApi } from '../api/client.js'
+import { imagesApi, requestsApi } from '../api/client.js'
 import ImageModal from '../components/ImageModal.vue'
+import RequestCard from '../components/RequestCard.vue'
+import DeleteRequestModal from '../components/DeleteRequestModal.vue'
 
 export default {
   name: 'LibraryView',
   components: {
-    ImageModal
+    ImageModal,
+    RequestCard,
+    DeleteRequestModal
   },
   props: {
     imageId: String // selected image ID from URL
@@ -108,8 +165,30 @@ export default {
       keywords: null
     })
 
-    // Inject the loadSettingsFromImage function from App.vue
+    // Requests panel state
+    const isPanelOpen = ref(false)
+    const requests = ref([])
+    const queueStatus = ref(null)
+    const deleteModalVisible = ref(false)
+    const requestToDelete = ref(null)
+    let pollInterval = null
+
+    // Inject functions from App.vue
     const loadSettingsFromImage = inject('loadSettingsFromImage')
+    const openSettingsModal = inject('openSettingsModal')
+    const openRequestModal = inject('openRequestModal')
+
+    const openSettings = () => {
+      if (openSettingsModal) {
+        openSettingsModal()
+      }
+    }
+
+    const openNewRequest = () => {
+      if (openRequestModal) {
+        openRequestModal()
+      }
+    }
 
     // Load filters from localStorage
     const loadFilters = () => {
@@ -128,10 +207,6 @@ export default {
     const saveFilters = () => {
       localStorage.setItem('libraryFilters', JSON.stringify(filters.value))
     }
-
-    const title = computed(() => {
-      return 'All Images'
-    })
 
     const currentImageIndex = computed(() => {
       if (!selectedImage.value) return -1
@@ -310,6 +385,66 @@ export default {
       }
     })
 
+    // Requests panel functions
+    const togglePanel = () => {
+      isPanelOpen.value = !isPanelOpen.value
+    }
+
+    const fetchRequests = async () => {
+      try {
+        const response = await requestsApi.getAll()
+        requests.value = response.data
+      } catch (error) {
+        console.error('Error fetching requests:', error)
+      }
+    }
+
+    const fetchQueueStatus = async () => {
+      try {
+        const response = await requestsApi.getQueueStatus()
+        queueStatus.value = response.data
+      } catch (error) {
+        console.error('Error fetching queue status:', error)
+      }
+    }
+
+    const viewRequestImages = (requestId) => {
+      // Set the request filter in localStorage
+      const newFilters = {
+        requestId: requestId,
+        keywords: null
+      }
+      localStorage.setItem('libraryFilters', JSON.stringify(newFilters))
+      filters.value = newFilters
+
+      // Close the panel
+      isPanelOpen.value = false
+
+      // Refresh images
+      offset.value = 0
+      hasMore.value = true
+      fetchImages()
+    }
+
+    const showDeleteModal = (requestId) => {
+      requestToDelete.value = requestId
+      deleteModalVisible.value = true
+    }
+
+    const confirmDelete = async (imageAction) => {
+      if (!requestToDelete.value) return
+
+      try {
+        await requestsApi.delete(requestToDelete.value, imageAction)
+        requests.value = requests.value.filter(r => r.uuid !== requestToDelete.value)
+        deleteModalVisible.value = false
+        requestToDelete.value = null
+      } catch (error) {
+        console.error('Error deleting request:', error)
+        alert('Failed to delete request. Please try again.')
+      }
+    }
+
     // Listen for filter changes from localStorage (e.g., from other tabs or RequestCard)
     const handleStorageChange = (e) => {
       if (e.key === 'libraryFilters') {
@@ -324,11 +459,25 @@ export default {
       loadFilters()
       await fetchImages()
       loadImageFromUrl()
+
+      // Fetch requests and queue status
+      fetchRequests()
+      fetchQueueStatus()
+
+      // Poll for updates every 2 seconds
+      pollInterval = setInterval(() => {
+        fetchRequests()
+        fetchQueueStatus()
+      }, 2000)
+
       window.addEventListener('scroll', handleScroll)
       window.addEventListener('storage', handleStorageChange)
     })
 
     onUnmounted(() => {
+      if (pollInterval) {
+        clearInterval(pollInterval)
+      }
       window.removeEventListener('scroll', handleScroll)
       window.removeEventListener('storage', handleStorageChange)
     })
@@ -342,7 +491,6 @@ export default {
       selectedImage,
       currentImageIndex,
       gridContainer,
-      title,
       filters,
       searchQuery,
       getThumbnailUrl,
@@ -354,7 +502,18 @@ export default {
       handleLoadSettings,
       applySearch,
       clearFilter,
-      clearAllFilters
+      clearAllFilters,
+      openSettings,
+      openNewRequest,
+      // Requests panel
+      isPanelOpen,
+      togglePanel,
+      requests,
+      queueStatus,
+      viewRequestImages,
+      showDeleteModal,
+      confirmDelete,
+      deleteModalVisible
     }
   }
 }
@@ -372,17 +531,44 @@ export default {
   padding: 1.5rem 2rem;
   margin-bottom: 0;
   position: sticky;
-  top: 60px; /* Height of the navbar */
+  top: 0;
   background: #0a0a0a;
   z-index: 50;
   border-bottom: 1px solid #333;
   gap: 2rem;
 }
 
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .header h2 {
   font-size: 2rem;
   font-weight: 600;
   white-space: nowrap;
+  margin: 0;
+}
+
+.btn-settings-icon {
+  background: transparent;
+  color: #999;
+  border: 1px solid #333;
+  padding: 0.5rem 0.6rem;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.btn-settings-icon:hover {
+  color: #fff;
+  background: #2a2a2a;
+  border-color: #444;
 }
 
 .header-controls {
@@ -550,5 +736,147 @@ export default {
 
 .date {
   font-weight: 500;
+}
+
+/* Floating Action Button */
+.fab {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #007AFF;
+  color: white;
+  border: none;
+  font-size: 2.5rem;
+  font-weight: 300;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  transition: all 0.2s;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fab:hover {
+  background: #0051D5;
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+}
+
+.fab:active {
+  transform: scale(0.95);
+}
+
+/* Requests Panel Tab */
+.panel-tab {
+  position: sticky;
+  top: 84px;
+  z-index: 45;
+  background: #1a1a1a;
+  border-bottom: 1px solid #333;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.panel-tab:hover {
+  background: #222;
+}
+
+.tab-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 0.75rem 2rem;
+}
+
+.tab-arrow {
+  font-size: 0.75rem;
+  color: #999;
+}
+
+.queue-status {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+  color: #999;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #666;
+}
+
+.status-dot.active {
+  background: #00ff00;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.divider {
+  color: #444;
+}
+
+/* Requests Panel */
+.requests-panel {
+  position: sticky;
+  top: 84px;
+  z-index: 44;
+  background: #0a0a0a;
+  border-bottom: 1px solid #333;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease-out;
+}
+
+.requests-panel.open {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.panel-header {
+  padding: 1.5rem 2rem 1rem;
+  border-bottom: 1px solid #222;
+}
+
+.panel-header h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.panel-content {
+  padding: 1.5rem 2rem;
+}
+
+.panel-empty-state {
+  text-align: center;
+  padding: 3rem 2rem;
+  color: #666;
+}
+
+.panel-empty-state p {
+  margin-bottom: 0.5rem;
+}
+
+.panel-empty-state .hint {
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.requests-grid {
+  display: grid;
+  gap: 1rem;
 }
 </style>
