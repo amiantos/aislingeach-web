@@ -54,7 +54,7 @@
 </template>
 
 <script>
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, watch } from 'vue'
 import { imagesApi } from '../api/client.js'
 
 export default {
@@ -95,6 +95,16 @@ export default {
         }
       }
     }
+
+    // Watch for status changes to completed
+    watch(
+      () => props.request.status,
+      (newStatus) => {
+        if (newStatus === 'completed' && !thumbnailUrl.value) {
+          fetchThumbnail()
+        }
+      }
+    )
 
     onMounted(() => {
       fetchThumbnail()
