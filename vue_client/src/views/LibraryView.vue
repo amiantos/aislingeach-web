@@ -279,14 +279,15 @@ export default {
 
 <style scoped>
 .library-view {
-  padding: 1rem 0;
+  padding: 0;
 }
 
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
+  padding: 1.5rem 2rem;
+  margin-bottom: 0;
 }
 
 .header h2 {
@@ -322,7 +323,7 @@ export default {
 .loading,
 .loading-more {
   text-align: center;
-  padding: 3rem;
+  padding: 3rem 2rem;
   color: #999;
 }
 

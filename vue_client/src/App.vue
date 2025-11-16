@@ -18,7 +18,7 @@
       </div>
     </nav>
 
-    <main class="main-content">
+    <main class="main-content" :class="{ 'full-width': isLibraryRoute }">
       <router-view />
     </main>
 
@@ -39,7 +39,8 @@
 </template>
 
 <script>
-import { ref, provide, nextTick } from 'vue'
+import { ref, provide, nextTick, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import RequestGeneratorModal from './components/RequestGeneratorModal.vue'
 import SettingsModal from './components/SettingsModal.vue'
 
@@ -50,11 +51,16 @@ export default {
     SettingsModal
   },
   setup() {
+    const route = useRoute()
     const showRequestModal = ref(false)
     const showSettingsModal = ref(false)
     const requestModalRef = ref(null)
     const modalInitialSettings = ref(null)
     const modalIncludeSeed = ref(false)
+
+    const isLibraryRoute = computed(() => {
+      return route.path.startsWith('/library')
+    })
 
     const handleCloseRequestModal = () => {
       showRequestModal.value = false
@@ -114,7 +120,8 @@ export default {
       modalIncludeSeed,
       handleCloseRequestModal,
       handleNewRequest,
-      loadSettingsFromImage
+      loadSettingsFromImage,
+      isLibraryRoute
     }
   }
 }
@@ -231,5 +238,10 @@ export default {
   width: 100%;
   margin: 0 auto;
   padding: 2rem;
+}
+
+.main-content.full-width {
+  max-width: none;
+  padding: 0;
 }
 </style>
