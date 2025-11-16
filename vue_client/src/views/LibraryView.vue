@@ -1,42 +1,5 @@
 <template>
   <div class="library-view">
-    <div class="header">
-      <div class="header-left">
-        <h2>Aislingeach</h2>
-        <button @click="openSettings" class="btn-settings-icon" title="Settings">
-          ⚙
-        </button>
-      </div>
-
-      <div class="header-controls">
-        <div class="right-controls">
-          <!-- Active Filters -->
-          <div v-if="filters.requestId || filters.keywords" class="filter-chips">
-            <div v-if="filters.requestId" class="filter-chip">
-              <span>Request: {{ filters.requestId.substring(0, 8) }}</span>
-              <button @click="clearFilter('requestId')" class="chip-remove">×</button>
-            </div>
-            <div v-if="filters.keywords" class="filter-chip">
-              <span>{{ filters.keywords }}</span>
-              <button @click="clearFilter('keywords')" class="chip-remove">×</button>
-            </div>
-          </div>
-
-          <!-- Search Bar -->
-          <div class="search-bar">
-            <input
-              type="text"
-              v-model="searchQuery"
-              @keyup.enter="applySearch"
-              placeholder="Search images..."
-              class="search-input"
-            />
-            <button @click="applySearch" class="btn-search">Search</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- Requests Panel Toggle Tab -->
     <div class="panel-tab" @click="togglePanel" :class="{ open: isPanelOpen }">
       <div class="tab-content">
@@ -79,6 +42,43 @@
       @close="deleteModalVisible = false"
       @delete="confirmDelete"
     />
+
+    <div class="header">
+      <div class="header-left">
+        <h2>Aislingeach</h2>
+        <button @click="openSettings" class="btn-settings-icon" title="Settings">
+          ⚙
+        </button>
+      </div>
+
+      <div class="header-controls">
+        <div class="right-controls">
+          <!-- Active Filters -->
+          <div v-if="filters.requestId || filters.keywords" class="filter-chips">
+            <div v-if="filters.requestId" class="filter-chip">
+              <span>Request: {{ filters.requestId.substring(0, 8) }}</span>
+              <button @click="clearFilter('requestId')" class="chip-remove">×</button>
+            </div>
+            <div v-if="filters.keywords" class="filter-chip">
+              <span>{{ filters.keywords }}</span>
+              <button @click="clearFilter('keywords')" class="chip-remove">×</button>
+            </div>
+          </div>
+
+          <!-- Search Bar -->
+          <div class="search-bar">
+            <input
+              type="text"
+              v-model="searchQuery"
+              @keyup.enter="applySearch"
+              placeholder="Search images..."
+              class="search-input"
+            />
+            <button @click="applySearch" class="btn-search">Search</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <div v-if="loading && images.length === 0" class="loading">
       Loading images...
@@ -531,7 +531,7 @@ export default {
   padding: 1.5rem 2rem;
   margin-bottom: 0;
   position: sticky;
-  top: 0;
+  top: 42px;
   background: #0a0a0a;
   z-index: 50;
   border-bottom: 1px solid #333;
@@ -774,8 +774,8 @@ export default {
 /* Requests Panel Tab */
 .panel-tab {
   position: sticky;
-  top: 84px;
-  z-index: 45;
+  top: 0;
+  z-index: 51;
   background: #1a1a1a;
   border-bottom: 1px solid #333;
   cursor: pointer;
@@ -830,9 +830,6 @@ export default {
 
 /* Requests Panel */
 .requests-panel {
-  position: sticky;
-  top: 84px;
-  z-index: 44;
   background: #0a0a0a;
   border-bottom: 1px solid #333;
   max-height: 0;
