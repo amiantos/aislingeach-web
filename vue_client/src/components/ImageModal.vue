@@ -3,6 +3,24 @@
     <div class="modal-content">
       <button class="btn-close" @click="$emit('close')">×</button>
 
+      <button
+        v-if="showNavigation"
+        class="btn-nav btn-prev"
+        @click="$emit('navigate', -1)"
+        title="Previous image (←)"
+      >
+        ‹
+      </button>
+
+      <button
+        v-if="showNavigation"
+        class="btn-nav btn-next"
+        @click="$emit('navigate', 1)"
+        title="Next image (→)"
+      >
+        ›
+      </button>
+
       <div class="image-container">
         <img :src="imageUrl" :alt="image.prompt_simple" />
       </div>
@@ -37,7 +55,7 @@
 </template>
 
 <script>
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import { imagesApi } from '../api/client.js'
 
 export default {
@@ -46,12 +64,24 @@ export default {
     image: {
       type: Object,
       required: true
+    },
+    images: {
+      type: Array,
+      default: () => []
+    },
+    currentIndex: {
+      type: Number,
+      default: -1
     }
   },
-  emits: ['close', 'delete'],
-  setup(props) {
+  emits: ['close', 'delete', 'navigate'],
+  setup(props, { emit }) {
     const imageUrl = computed(() => {
       return imagesApi.getImageUrl(props.image.uuid)
+    })
+
+    const showNavigation = computed(() => {
+      return props.images.length > 1
     })
 
     const formatDate = (timestamp) => {
@@ -59,8 +89,31 @@ export default {
       return date.toLocaleString()
     }
 
+    const handleKeydown = (e) => {
+      if (e.key === 'Escape') {
+        emit('close')
+      } else if (e.key === 'ArrowLeft') {
+        if (showNavigation.value) {
+          emit('navigate', -1)
+        }
+      } else if (e.key === 'ArrowRight') {
+        if (showNavigation.value) {
+          emit('navigate', 1)
+        }
+      }
+    }
+
+    onMounted(() => {
+      window.addEventListener('keydown', handleKeydown)
+    })
+
+    onUnmounted(() => {
+      window.removeEventListener('keydown', handleKeydown)
+    })
+
     return {
       imageUrl,
+      showNavigation,
       formatDate
     }
   }
@@ -115,19 +168,53 @@ export default {
   background: rgba(0, 0, 0, 0.95);
 }
 
-.image-container {
-  flex: 1;
+.btn-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 50px;
+  height: 50px;
+  border: none;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  font-size: 3rem;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 10;
+  transition: all 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 50%;
+}
+
+.btn-nav:hover {
+  background: rgba(0, 0, 0, 0.95);
+  transform: translateY(-50%) scale(1.1);
+}
+
+.btn-prev {
+  left: 1rem;
+}
+
+.btn-next {
+  right: 1rem;
+}
+
+.image-container {
+  flex: 1;
+  display: flex;
+  justify-content: center;
   background: #000;
-  overflow: auto;
+  overflow: hidden;
   min-height: 0;
 }
 
 .image-container img {
   max-width: 100%;
   max-height: 100%;
+  width: auto;
+  height: auto;
   object-fit: contain;
 }
 

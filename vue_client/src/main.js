@@ -28,6 +28,12 @@ const router = createRouter({
       name: 'library-search',
       component: LibraryView,
       props: route => ({ keywords: route.query.q })
+    },
+    {
+      path: '/library/image/:imageId',
+      name: 'library-image',
+      component: LibraryView,
+      props: true
     }
   ]
 })

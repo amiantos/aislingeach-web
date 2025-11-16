@@ -1,5 +1,5 @@
 <template>
-  <div class="modal-overlay" @click.self="$emit('close')">
+  <div class="modal-overlay">
     <div class="modal-content">
       <div class="modal-header">
         <h2>New Image Request</h2>
@@ -93,6 +93,17 @@
           </div>
 
           <div class="form-group">
+            <label for="model">Model</label>
+            <select id="model" v-model="form.model" :disabled="loadingModels">
+              <option v-if="loadingModels" value="">Loading models...</option>
+              <option v-else-if="models.length === 0" value="">No models available</option>
+              <option v-for="model in models" :key="model.name" :value="model.name">
+                {{ model.name }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group">
             <label for="sampler">Sampler</label>
             <select id="sampler" v-model="form.sampler">
               <option value="k_euler">Euler</option>
@@ -122,18 +133,22 @@
 </template>
 
 <script>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { requestsApi } from '../api/client.js'
+import axios from 'axios'
 
 export default {
   name: 'RequestGeneratorModal',
   emits: ['close', 'submit'],
   setup(props, { emit }) {
     const submitting = ref(false)
+    const models = ref([])
+    const loadingModels = ref(true)
 
     const form = reactive({
       prompt: '',
       negativePrompt: '',
+      model: '',
       n: 1,
       steps: 30,
       width: 512,
@@ -142,12 +157,39 @@ export default {
       sampler: 'k_euler_a'
     })
 
+    // Fetch available models from AI Horde
+    const fetchModels = async () => {
+      try {
+        loadingModels.value = true
+        const response = await axios.get('https://stablehorde.net/api/v2/status/models')
+        // Filter to only active text-to-image models and sort by count (popularity)
+        models.value = response.data
+          .filter(model => model.type === 'image' && model.count > 0)
+          .sort((a, b) => b.count - a.count)
+
+        // Set default to most popular model
+        if (models.value.length > 0) {
+          form.model = models.value[0].name
+        }
+      } catch (error) {
+        console.error('Error fetching models:', error)
+        models.value = []
+      } finally {
+        loadingModels.value = false
+      }
+    }
+
+    onMounted(() => {
+      fetchModels()
+    })
+
     const submitRequest = async () => {
       try {
         submitting.value = true
 
         const params = {
           prompt: form.prompt,
+          models: [form.model],
           params: {
             n: form.n,
             steps: form.steps,
@@ -180,6 +222,8 @@ export default {
 
     return {
       form,
+      models,
+      loadingModels,
       submitting,
       submitRequest
     }

@@ -1,18 +1,29 @@
 <template>
   <div class="request-card" :class="statusClass">
-    <div class="request-header">
-      <div class="request-info">
-        <h3 class="prompt">{{ truncatedPrompt }}</h3>
-        <div class="meta">
-          <span class="date">{{ formattedDate }}</span>
-          <span class="divider">•</span>
-          <span class="count">{{ request.n }} {{ request.n === 1 ? 'image' : 'images' }}</span>
+    <div class="card-content">
+      <div class="thumbnail-container">
+        <div v-if="request.status === 'completed' && thumbnailUrl" class="thumbnail">
+          <img :src="thumbnailUrl" alt="Request thumbnail" />
+        </div>
+        <div v-else class="thumbnail placeholder">
+          <div class="spinner"></div>
         </div>
       </div>
-      <div class="request-status">
-        <span class="status-badge" :class="statusClass">{{ statusText }}</span>
-      </div>
-    </div>
+
+      <div class="card-body">
+        <div class="request-header">
+          <div class="request-info">
+            <h3 class="prompt">{{ truncatedPrompt }}</h3>
+            <div class="meta">
+              <span class="date">{{ formattedDate }}</span>
+              <span class="divider">•</span>
+              <span class="count">{{ request.n }} {{ request.n === 1 ? 'image' : 'images' }}</span>
+            </div>
+          </div>
+          <div class="request-status">
+            <span class="status-badge" :class="statusClass">{{ statusText }}</span>
+          </div>
+        </div>
 
     <div v-if="showProgress" class="progress-info">
       <div v-if="request.queue_position > 0" class="queue-info">
@@ -22,26 +33,29 @@
       <div v-if="request.message" class="message">{{ request.message }}</div>
     </div>
 
-    <div class="request-actions">
-      <button
-        v-if="request.status === 'completed'"
-        @click="$emit('view-images', request.uuid)"
-        class="btn btn-primary"
-      >
-        View Images
-      </button>
-      <button
-        @click="$emit('delete', request.uuid)"
-        class="btn btn-delete"
-      >
-        Delete
-      </button>
+        <div class="request-actions">
+          <button
+            v-if="request.status === 'completed'"
+            @click="$emit('view-images', request.uuid)"
+            class="btn btn-primary"
+          >
+            View Images
+          </button>
+          <button
+            @click="$emit('delete', request.uuid)"
+            class="btn btn-delete"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script>
-import { computed } from 'vue'
+import { computed, ref, onMounted } from 'vue'
+import { imagesApi } from '../api/client.js'
 
 export default {
   name: 'RequestCard',
@@ -53,6 +67,8 @@ export default {
   },
   emits: ['view-images', 'delete'],
   setup(props) {
+    const thumbnailUrl = ref(null)
+
     const truncatedPrompt = computed(() => {
       const maxLength = 100
       if (props.request.prompt && props.request.prompt.length > maxLength) {
@@ -66,17 +82,36 @@ export default {
       return date.toLocaleString()
     })
 
+    // Fetch first image thumbnail for completed requests
+    const fetchThumbnail = async () => {
+      if (props.request.status === 'completed') {
+        try {
+          const response = await imagesApi.getByRequestId(props.request.uuid, 1)
+          if (response.data && response.data.length > 0) {
+            thumbnailUrl.value = imagesApi.getThumbnailUrl(response.data[0].uuid)
+          }
+        } catch (error) {
+          console.error('Error fetching thumbnail:', error)
+        }
+      }
+    }
+
+    onMounted(() => {
+      fetchThumbnail()
+    })
+
     const statusClass = computed(() => {
       const status = props.request.status
       if (status === 'completed') return 'status-completed'
       if (status === 'failed') return 'status-failed'
-      if (status === 'processing' || status === 'downloading') return 'status-processing'
+      if (status === 'submitting' || status === 'processing' || status === 'downloading') return 'status-processing'
       return 'status-pending'
     })
 
     const statusText = computed(() => {
       const status = props.request.status
       if (status === 'pending') return 'Pending'
+      if (status === 'submitting') return 'Submitting'
       if (status === 'processing') return 'Processing'
       if (status === 'downloading') return 'Downloading'
       if (status === 'completed') return 'Completed'
@@ -85,7 +120,7 @@ export default {
     })
 
     const showProgress = computed(() => {
-      return ['pending', 'processing', 'downloading'].includes(props.request.status)
+      return ['pending', 'submitting', 'processing', 'downloading'].includes(props.request.status)
     })
 
     const formatWaitTime = (seconds) => {
@@ -95,6 +130,7 @@ export default {
     }
 
     return {
+      thumbnailUrl,
       truncatedPrompt,
       formattedDate,
       statusClass,
@@ -120,6 +156,55 @@ export default {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
+.card-content {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.thumbnail-container {
+  flex-shrink: 0;
+}
+
+.thumbnail {
+  width: 100px;
+  height: 100px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #0f0f0f;
+}
+
+.thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.thumbnail.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0f0f0f;
+  border: 1px solid #333;
+}
+
+.spinner {
+  width: 30px;
+  height: 30px;
+  border: 3px solid #333;
+  border-top-color: #007AFF;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.card-body {
+  flex: 1;
+  min-width: 0;
+}
+
 .request-header {
   display: flex;
   justify-content: space-between;
@@ -130,6 +215,7 @@ export default {
 
 .request-info {
   flex: 1;
+  min-width: 0;
 }
 
 .prompt {
