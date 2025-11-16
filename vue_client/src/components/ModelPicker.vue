@@ -5,6 +5,14 @@
         <span class="arrow">←</span> Back
       </button>
       <h3>Select Model</h3>
+      <button
+        class="btn-refresh"
+        @click="refreshModels"
+        :disabled="loadingModels"
+        title="Refresh model list from server"
+      >
+        {{ loadingModels ? '...' : '↻' }}
+      </button>
     </div>
 
     <div class="search-container">
@@ -159,21 +167,55 @@ export default {
       saveFavorites()
     }
 
-    const fetchModels = async () => {
+    const fetchModels = async (forceRefresh = false) => {
       try {
         loadingModels.value = true
+        const cacheKey = 'aiHordeModels'
+        const cacheTimeKey = 'aiHordeModelsTime'
+        const cacheMaxAge = 60 * 60 * 1000 // 1 hour in milliseconds
+
+        // Check cache first unless force refresh
+        if (!forceRefresh) {
+          const cachedModels = localStorage.getItem(cacheKey)
+          const cachedTime = localStorage.getItem(cacheTimeKey)
+
+          if (cachedModels && cachedTime) {
+            const age = Date.now() - parseInt(cachedTime)
+            if (age < cacheMaxAge) {
+              // Use cached models
+              try {
+                models.value = JSON.parse(cachedModels)
+                loadingModels.value = false
+                return
+              } catch (parseError) {
+                console.error('Error parsing cached models:', parseError)
+                // Fall through to fetch from server
+              }
+            }
+          }
+        }
+
+        // Fetch from server
         const response = await axios.get('https://stablehorde.net/api/v2/status/models')
 
         // Filter to only active text-to-image models and sort by count (popularity)
         models.value = response.data
           .filter(model => model.type === 'image' && model.count > 0)
           .sort((a, b) => b.count - a.count)
+
+        // Cache the models
+        localStorage.setItem(cacheKey, JSON.stringify(models.value))
+        localStorage.setItem(cacheTimeKey, Date.now().toString())
       } catch (error) {
         console.error('Error fetching models:', error)
         models.value = []
       } finally {
         loadingModels.value = false
       }
+    }
+
+    const refreshModels = () => {
+      fetchModels(true)
     }
 
     const selectModel = (model) => {
@@ -196,7 +238,8 @@ export default {
       favoriteModels,
       nonFavoriteModels,
       selectModel,
-      toggleFavorite
+      toggleFavorite,
+      refreshModels
     }
   }
 }
@@ -258,6 +301,28 @@ export default {
   margin: 0;
   font-size: 1.25rem;
   flex: 1;
+}
+
+.btn-refresh {
+  background: transparent;
+  border: 1px solid #333;
+  color: #007AFF;
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  transition: all 0.2s;
+  min-width: 40px;
+}
+
+.btn-refresh:hover:not(:disabled) {
+  background: #2a2a2a;
+  border-color: #007AFF;
+}
+
+.btn-refresh:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .search-container {

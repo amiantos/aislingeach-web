@@ -181,6 +181,25 @@
                 </select>
               </div>
 
+              <!-- Seed -->
+              <div class="form-group">
+                <label for="seed">Seed</label>
+                <div class="seed-control">
+                  <label class="seed-toggle">
+                    <input type="checkbox" v-model="form.useRandomSeed" />
+                    <span>Random</span>
+                  </label>
+                  <input
+                    v-if="!form.useRandomSeed"
+                    type="text"
+                    id="seed"
+                    v-model="form.seed"
+                    placeholder="Enter seed number"
+                    class="seed-input"
+                  />
+                </div>
+              </div>
+
               <!-- Advanced Toggles -->
               <div class="toggles-section">
                 <h4>Advanced Options</h4>
@@ -302,6 +321,16 @@ export default {
     ModelPicker,
     StylePicker
   },
+  props: {
+    initialSettings: {
+      type: Object,
+      default: null
+    },
+    includeSeed: {
+      type: Boolean,
+      default: false
+    }
+  },
   emits: ['close', 'submit'],
   setup(props, { emit }) {
     const submitting = ref(false)
@@ -325,6 +354,8 @@ export default {
       cfgScale: 7,
       clipSkip: 1,
       sampler: 'k_euler_a',
+      seed: '',
+      useRandomSeed: true,
       karras: true,
       hiresFix: false,
       tiling: false,
@@ -336,13 +367,45 @@ export default {
     })
 
 
-    // Fetch available models from AI Horde
-    const fetchModels = async () => {
+    // Fetch available models from AI Horde (with caching)
+    const fetchModels = async (forceRefresh = false) => {
       try {
+        const cacheKey = 'aiHordeModels'
+        const cacheTimeKey = 'aiHordeModelsTime'
+        const cacheMaxAge = 60 * 60 * 1000 // 1 hour in milliseconds
+
+        // Check cache first unless force refresh
+        if (!forceRefresh) {
+          const cachedModels = localStorage.getItem(cacheKey)
+          const cachedTime = localStorage.getItem(cacheTimeKey)
+
+          if (cachedModels && cachedTime) {
+            const age = Date.now() - parseInt(cachedTime)
+            if (age < cacheMaxAge) {
+              // Use cached models
+              try {
+                const models = JSON.parse(cachedModels)
+                if (models.length > 0 && !form.model) {
+                  form.model = models[0].name
+                }
+                return
+              } catch (parseError) {
+                console.error('Error parsing cached models:', parseError)
+                // Fall through to fetch from server
+              }
+            }
+          }
+        }
+
+        // Fetch from server
         const response = await axios.get('https://stablehorde.net/api/v2/status/models')
         const models = response.data
           .filter(model => model.type === 'image' && model.count > 0)
           .sort((a, b) => b.count - a.count)
+
+        // Cache the models
+        localStorage.setItem(cacheKey, JSON.stringify(models))
+        localStorage.setItem(cacheTimeKey, Date.now().toString())
 
         // Set default to most popular model
         if (models.length > 0 && !form.model) {
@@ -353,15 +416,33 @@ export default {
       }
     }
 
-    // Load last used settings
+    // Load last used settings (from localStorage for speed, fallback to server)
     const loadLastUsedSettings = async () => {
       try {
+        // Try localStorage first for instant loading
+        const cachedSettings = localStorage.getItem('lastUsedSettings')
+        if (cachedSettings) {
+          try {
+            const lastSettings = JSON.parse(cachedSettings)
+            if (lastSettings && typeof lastSettings === 'object') {
+              Object.assign(form, lastSettings)
+              return // Success, no need to fetch from server
+            }
+          } catch (parseError) {
+            console.error('Error parsing cached settings:', parseError)
+            // Fall through to server fetch
+          }
+        }
+
+        // Fallback to server if no cache or cache failed
         const response = await settingsApi.get()
         if (response.data && response.data.last_used_settings) {
           try {
             const lastSettings = JSON.parse(response.data.last_used_settings)
             if (lastSettings && typeof lastSettings === 'object') {
               Object.assign(form, lastSettings)
+              // Cache the settings locally for next time
+              localStorage.setItem('lastUsedSettings', JSON.stringify(lastSettings))
             }
           } catch (parseError) {
             console.error('Error parsing last_used_settings:', parseError)
@@ -372,13 +453,20 @@ export default {
       }
     }
 
-    // Save last used settings
+    // Save last used settings (to both localStorage and server)
     const saveLastUsedSettings = async () => {
       try {
         const settingsToSave = { ...form }
         // Don't save loras in last used settings as they're style-specific
         delete settingsToSave.loras
-        await settingsApi.update({ lastUsedSettings: settingsToSave })
+
+        // Save to localStorage immediately for instant access
+        localStorage.setItem('lastUsedSettings', JSON.stringify(settingsToSave))
+
+        // Also save to server (async, don't wait)
+        settingsApi.update({ lastUsedSettings: settingsToSave }).catch(error => {
+          console.error('Error saving settings to server:', error)
+        })
       } catch (error) {
         console.error('Error saving last used settings:', error)
       }
@@ -395,7 +483,7 @@ export default {
     }
 
     // Load settings from an arbitrary settings object
-    const loadSettings = (settings) => {
+    const loadSettings = (settings, includeSeed = false) => {
       // Split prompt on ### to separate positive and negative prompts
       if (settings.prompt) {
         const splitPrompt = settings.prompt.split('###')
@@ -429,6 +517,17 @@ export default {
         if (params.tiling !== undefined) form.tiling = params.tiling
         if (params.loras) form.loras = [...params.loras]
         if (params.post_processing) form.postProcessing = [...params.post_processing]
+
+        // Load seed if requested and available
+        if (includeSeed && params.seed !== undefined && params.seed !== null && params.seed !== '') {
+          form.seed = String(params.seed)
+          form.useRandomSeed = false
+          // Set number of images to 1 when loading with seed
+          form.n = 1
+        } else {
+          form.seed = ''
+          form.useRandomSeed = true
+        }
       }
 
       // Clear any selected style
@@ -616,6 +715,11 @@ export default {
         params.params.tiling = form.tiling
         params.params.clip_skip = form.clipSkip
 
+        // Add seed if not using random
+        if (!form.useRandomSeed && form.seed) {
+          params.params.seed = form.seed
+        }
+
         // Add post-processing if any
         if (form.postProcessing.length > 0) {
           params.params.post_processing = form.postProcessing
@@ -704,7 +808,15 @@ export default {
 
     onMounted(async () => {
       await fetchModels()
+
+      // Always load last used settings first to restore worker preferences
       await loadLastUsedSettings()
+
+      // Then load initial settings from props if provided (this will override generation params but not worker prefs)
+      if (props.initialSettings) {
+        loadSettings(props.initialSettings, props.includeSeed)
+      }
+
       // Only estimate if we have a model after loading
       if (form.model) {
         estimateKudos()
@@ -729,7 +841,8 @@ export default {
       onDimensionChange,
       estimateKudos,
       loadSettings,
-      loadRandomPreset
+      loadRandomPreset,
+      fetchModels
     }
   }
 }
@@ -1070,6 +1183,42 @@ export default {
 .checkbox-item span {
   color: #fff;
   font-size: 0.9rem;
+}
+
+.seed-control {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.seed-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 4px;
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+
+.seed-toggle:hover {
+  background: #252525;
+}
+
+.seed-toggle input[type="checkbox"] {
+  width: auto;
+  cursor: pointer;
+}
+
+.seed-toggle span {
+  color: #fff;
+  font-size: 0.9rem;
+}
+
+.seed-input {
+  flex: 1;
 }
 
 .kudos-estimate {

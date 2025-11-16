@@ -31,15 +31,15 @@ class QueueManager {
     this.isProcessing = true;
     console.log('Queue Manager started');
 
-    // Check for pending requests every 2 seconds
+    // Check for pending requests every 3 seconds
     this.statusCheckInterval = setInterval(() => {
       this.processQueue();
-    }, 2000);
+    }, 3000);
 
-    // Check for pending downloads every 1 second
+    // Check for pending downloads every 2 seconds
     this.downloadCheckInterval = setInterval(() => {
       this.processDownloads();
-    }, 1000);
+    }, 2000);
 
     // Initial run
     this.processQueue();
@@ -167,7 +167,14 @@ class QueueManager {
 
     console.log(`[Status] Checking status of ${this.activeRequests.size} active requests`);
 
+    let isFirst = true;
     for (const [requestUuid, hordeId] of this.activeRequests.entries()) {
+      // Add 1 second delay between checks (but not before the first one)
+      if (!isFirst) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      isFirst = false;
+
       // Skip requests that are still being submitted
       if (hordeId === 'submitting') {
         console.log(`[Status] Skipping ${requestUuid.substring(0, 8)}... (still submitting)`);
@@ -229,23 +236,50 @@ class QueueManager {
         return;
       }
 
-      // Create pending downloads for each image
-      console.log(`[Complete] Creating ${statusData.generations.length} pending downloads for ${requestUuid.substring(0, 8)}...`);
+      // Create pending downloads for each image (skip censored images)
+      console.log(`[Complete] Processing ${statusData.generations.length} images for ${requestUuid.substring(0, 8)}...`);
+      let downloadCount = 0;
+      let censoredCount = 0;
+
       for (const generation of statusData.generations) {
+        // Skip censored images
+        if (generation.censored === true) {
+          censoredCount++;
+          console.log(`[Complete]   - Skipping censored image`);
+          continue;
+        }
+
         const download = HordePendingDownload.create({
           requestId: requestUuid,
           uri: generation.img,
           fullResponse: JSON.stringify(generation)
         });
+        downloadCount++;
         console.log(`[Complete]   - Created download ${download.uuid.substring(0, 8)}... for image: ${generation.img}`);
+      }
+
+      if (censoredCount > 0) {
+        console.log(`[Complete] Skipped ${censoredCount} censored image(s)`);
+      }
+      console.log(`[Complete] Created ${downloadCount} pending download(s) for ${requestUuid.substring(0, 8)}...`);
+
+      if (downloadCount === 0) {
+        HordeRequest.update(requestUuid, {
+          status: 'completed',
+          message: censoredCount > 0 ? `All ${censoredCount} images were censored` : 'No images to download'
+        });
+        console.log(`[Complete] ✓ Request ${requestUuid.substring(0, 8)}... completed with no images to download`);
+        return;
       }
 
       HordeRequest.update(requestUuid, {
         status: 'downloading',
-        message: `Downloading ${statusData.generations.length} images...`
+        message: censoredCount > 0
+          ? `Downloading ${downloadCount} images (${censoredCount} censored)...`
+          : `Downloading ${downloadCount} images...`
       });
 
-      console.log(`[Complete] ✓ Request ${requestUuid.substring(0, 8)}... completed, ${statusData.generations.length} images ready for download`);
+      console.log(`[Complete] ✓ Request ${requestUuid.substring(0, 8)}... completed, ${downloadCount} images ready for download`);
     } catch (error) {
       console.error(`[Complete] ✗ Error handling completed request ${requestUuid.substring(0, 8)}...:`, error.message);
       HordeRequest.update(requestUuid, {
@@ -284,6 +318,10 @@ class QueueManager {
 
           // Mark as being downloaded to prevent duplicates
           this.activeDownloads.add(download.uuid);
+
+          // Delete pending download immediately to prevent duplicate processing
+          // (do this before the download in case of errors/crashes)
+          HordePendingDownload.delete(download.uuid);
 
           // Download the image
           console.log(`[Download] → Fetching image data for ${download.uuid.substring(0, 8)}...`);
@@ -324,9 +362,6 @@ class QueueManager {
             thumbnailPath: `${imageUuid}_thumb.jpg`
           });
 
-          // Delete pending download
-          HordePendingDownload.delete(download.uuid);
-
           // Remove from active downloads
           this.activeDownloads.delete(download.uuid);
 
@@ -347,7 +382,8 @@ class QueueManager {
           }
         } catch (error) {
           console.error(`[Download] ✗ Error downloading image ${download.uuid.substring(0, 8)}...:`, error.message);
-          // Remove from active downloads so it can be retried
+          console.error(`[Download] Image download failed and will not be retried`);
+          // Remove from active downloads (note: pending download was already deleted to prevent duplicates)
           this.activeDownloads.delete(download.uuid);
         }
       }
