@@ -1,5 +1,5 @@
 <template>
-  <div class="library-view">
+  <div class="library-view" :class="{ 'panel-open': isPanelOpen }">
     <!-- Requests Panel Toggle Tab -->
     <div class="panel-tab" @click="togglePanel" :class="{ open: isPanelOpen }">
       <div class="tab-content">
@@ -533,9 +533,14 @@ export default {
   position: sticky;
   top: 42px;
   background: #0a0a0a;
-  z-index: 50;
+  z-index: 47;
   border-bottom: 1px solid #333;
   gap: 2rem;
+  transition: top 0.3s ease-out;
+}
+
+.library-view.panel-open .header {
+  top: calc(42px + 50vh);
 }
 
 .header-left {
@@ -830,15 +835,18 @@ export default {
 
 /* Requests Panel */
 .requests-panel {
+  position: sticky;
+  top: 42px;
   background: #0a0a0a;
   border-bottom: 1px solid #333;
   max-height: 0;
   overflow: hidden;
   transition: max-height 0.3s ease-out;
+  z-index: 48;
 }
 
 .requests-panel.open {
-  max-height: 60vh;
+  max-height: 50vh;
   overflow-y: auto;
 }
 
