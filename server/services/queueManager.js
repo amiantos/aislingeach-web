@@ -31,15 +31,15 @@ class QueueManager {
     this.isProcessing = true;
     console.log('Queue Manager started');
 
-    // Check for pending requests every 2 seconds
+    // Check for pending requests every 3 seconds
     this.statusCheckInterval = setInterval(() => {
       this.processQueue();
-    }, 2000);
+    }, 3000);
 
-    // Check for pending downloads every 1 second
+    // Check for pending downloads every 2 seconds
     this.downloadCheckInterval = setInterval(() => {
       this.processDownloads();
-    }, 1000);
+    }, 2000);
 
     // Initial run
     this.processQueue();
