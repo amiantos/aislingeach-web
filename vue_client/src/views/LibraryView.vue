@@ -44,15 +44,18 @@
     <ImageModal
       v-if="selectedImage"
       :image="selectedImage"
-      @close="selectedImage = null"
+      :images="images"
+      :currentIndex="currentImageIndex"
+      @close="closeImage"
       @delete="deleteImage"
+      @navigate="navigateImage"
     />
   </div>
 </template>
 
 <script>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { imagesApi } from '../api/client.js'
 import ImageModal from '../components/ImageModal.vue'
 
@@ -63,10 +66,12 @@ export default {
   },
   props: {
     id: String, // request ID
-    keywords: String
+    keywords: String,
+    imageId: String // selected image ID from URL
   },
   setup(props) {
     const router = useRouter()
+    const route = useRoute()
     const images = ref([])
     const loading = ref(true)
     const selectedImage = ref(null)
@@ -79,6 +84,11 @@ export default {
       if (props.id) return 'Request Images'
       if (props.keywords) return 'Search Results'
       return 'All Images'
+    })
+
+    const currentImageIndex = computed(() => {
+      if (!selectedImage.value) return -1
+      return images.value.findIndex(img => img.uuid === selectedImage.value.uuid)
     })
 
     const fetchImages = async (append = false) => {
@@ -143,6 +153,44 @@ export default {
 
     const viewImage = (image) => {
       selectedImage.value = image
+      updateUrl(image.uuid)
+    }
+
+    const closeImage = () => {
+      selectedImage.value = null
+      // Remove image ID from URL
+      if (props.id) {
+        router.push(`/library/request/${props.id}`)
+      } else if (props.keywords) {
+        router.push(`/library/search?q=${props.keywords}`)
+      } else {
+        router.push('/library')
+      }
+    }
+
+    const navigateImage = (direction) => {
+      const currentIndex = currentImageIndex.value
+      let newIndex = currentIndex + direction
+
+      // Wrap around
+      if (newIndex < 0) newIndex = images.value.length - 1
+      if (newIndex >= images.value.length) newIndex = 0
+
+      const newImage = images.value[newIndex]
+      if (newImage) {
+        selectedImage.value = newImage
+        updateUrl(newImage.uuid)
+      }
+    }
+
+    const updateUrl = (imageId) => {
+      if (props.id) {
+        router.replace(`/library/request/${props.id}/image/${imageId}`)
+      } else if (props.keywords) {
+        router.replace(`/library/search/image/${imageId}?q=${props.keywords}`)
+      } else {
+        router.replace(`/library/image/${imageId}`)
+      }
     }
 
     const deleteImage = async (imageId) => {
@@ -152,6 +200,7 @@ export default {
         await imagesApi.delete(imageId)
         images.value = images.value.filter(img => img.uuid !== imageId)
         selectedImage.value = null
+        closeImage()
       } catch (error) {
         console.error('Error deleting image:', error)
       }
@@ -161,8 +210,36 @@ export default {
       router.push('/library')
     }
 
-    onMounted(() => {
-      fetchImages()
+    // Load image from URL if imageId prop is present
+    const loadImageFromUrl = async () => {
+      if (props.imageId && images.value.length > 0) {
+        const image = images.value.find(img => img.uuid === props.imageId)
+        if (image) {
+          selectedImage.value = image
+        } else {
+          // Image not in current list, try to fetch it
+          try {
+            const response = await imagesApi.getById(props.imageId)
+            selectedImage.value = response.data
+          } catch (error) {
+            console.error('Error loading image from URL:', error)
+          }
+        }
+      }
+    }
+
+    // Watch for imageId changes from URL
+    watch(() => props.imageId, () => {
+      if (props.imageId) {
+        loadImageFromUrl()
+      } else {
+        selectedImage.value = null
+      }
+    })
+
+    onMounted(async () => {
+      await fetchImages()
+      loadImageFromUrl()
       window.addEventListener('scroll', handleScroll)
     })
 
@@ -174,11 +251,14 @@ export default {
       images,
       loading,
       selectedImage,
+      currentImageIndex,
       gridContainer,
       title,
       getThumbnailUrl,
       formatDate,
       viewImage,
+      closeImage,
+      navigateImage,
       deleteImage,
       clearSearch
     }
