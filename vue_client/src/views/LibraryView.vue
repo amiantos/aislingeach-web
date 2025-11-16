@@ -870,9 +870,9 @@ export default {
 /* Requests Panel Tab */
 .panel-tab {
   position: absolute;
-  bottom: 0;
+  top: 0;
   left: 50%;
-  transform: translate(-50%, 100%);
+  transform: translate(-50%, -100%);
   cursor: pointer;
   z-index: 49;
 }
