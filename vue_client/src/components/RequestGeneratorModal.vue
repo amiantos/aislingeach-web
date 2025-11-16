@@ -52,28 +52,19 @@
               </div>
             </div>
 
-            <!-- Style Action Buttons (When Style is Selected) -->
-            <div v-if="selectedStyleData && selectedStyleData.name !== 'None'" class="style-actions">
+            <!-- Apply Style Button (When Style is Selected) -->
+            <div v-if="selectedStyleName !== 'None'" class="style-actions">
               <button
-                v-if="!styleApplied"
                 type="button"
                 @click="applyStyle"
                 class="btn btn-apply-style"
               >
                 Apply Style
               </button>
-              <button
-                v-if="styleApplied"
-                type="button"
-                @click="removeStyle"
-                class="btn btn-remove-style"
-              >
-                Remove Style
-              </button>
             </div>
 
-            <!-- Full Parameters (Only Visible When NO Style is Applied) -->
-            <div v-if="!styleApplied" class="full-parameters">
+            <!-- Full Parameters (Only Visible When NO Style is Selected) -->
+            <div v-if="selectedStyleName === 'None'" class="full-parameters">
               <!-- Model Selection -->
               <div class="form-group">
                 <label>Model</label>
@@ -315,7 +306,6 @@ export default {
     const aspectRatio = ref(1)
     const selectedStyleName = ref('None')
     const selectedStyleData = ref(null)
-    const styleApplied = ref(false)
 
     const form = reactive({
       prompt: '',
@@ -338,8 +328,6 @@ export default {
       loras: []
     })
 
-    // Store original settings before applying style
-    const originalSettings = ref(null)
 
     // Fetch available models from AI Horde
     const fetchModels = async () => {
@@ -396,12 +384,7 @@ export default {
 
     const onStyleSelect = (style) => {
       selectedStyleName.value = style.name
-      selectedStyleData.value = style
-
-      // If "None" is selected, remove any applied style
-      if (style.name === 'None') {
-        removeStyle()
-      }
+      selectedStyleData.value = style.name === 'None' ? null : style
     }
 
     const applyStyle = () => {
@@ -409,25 +392,9 @@ export default {
         return
       }
 
-      // Store current settings before applying style
-      originalSettings.value = {
-        model: form.model,
-        steps: form.steps,
-        width: form.width,
-        height: form.height,
-        cfgScale: form.cfgScale,
-        sampler: form.sampler,
-        karras: form.karras,
-        hiresFix: form.hiresFix,
-        tiling: form.tiling,
-        clipSkip: form.clipSkip,
-        postProcessing: [...form.postProcessing],
-        loras: [...form.loras]
-      }
-
       const style = selectedStyleData.value
 
-      // Apply all style parameters to form
+      // Apply all style parameters to form (but not prompt, negativePrompt, or n)
       if (style.model) form.model = style.model
       if (style.steps !== undefined) form.steps = style.steps
       if (style.width !== undefined) form.width = style.width
@@ -447,31 +414,10 @@ export default {
       // Clear post-processing when style is applied
       form.postProcessing = []
 
-      styleApplied.value = true
-      estimateKudos()
-    }
-
-    const removeStyle = () => {
-      // Restore original settings if available
-      if (originalSettings.value) {
-        form.model = originalSettings.value.model
-        form.steps = originalSettings.value.steps
-        form.width = originalSettings.value.width
-        form.height = originalSettings.value.height
-        form.cfgScale = originalSettings.value.cfgScale
-        form.sampler = originalSettings.value.sampler
-        form.karras = originalSettings.value.karras
-        form.hiresFix = originalSettings.value.hiresFix
-        form.tiling = originalSettings.value.tiling
-        form.clipSkip = originalSettings.value.clipSkip
-        form.postProcessing = [...originalSettings.value.postProcessing]
-        form.loras = [...originalSettings.value.loras]
-        originalSettings.value = null
-      }
-
-      styleApplied.value = false
-      selectedStyleData.value = null
+      // Deselect the style (set back to None)
       selectedStyleName.value = 'None'
+      selectedStyleData.value = null
+
       estimateKudos()
     }
 
@@ -493,8 +439,8 @@ export default {
     }
 
     const buildPromptWithStyle = () => {
-      // If no style is applied or no style data, return prompts as-is
-      if (!styleApplied.value || !selectedStyleData.value || !selectedStyleData.value.prompt) {
+      // If no style is selected or no style data, return prompts as-is
+      if (selectedStyleName.value === 'None' || !selectedStyleData.value || !selectedStyleData.value.prompt) {
         return {
           prompt: form.prompt,
           negativePrompt: form.negativePrompt
@@ -554,8 +500,8 @@ export default {
         params.params.negative_prompt = finalNegativePrompt
       }
 
-      // Add post-processing if any (only when style not applied)
-      if (!styleApplied.value && form.postProcessing.length > 0) {
+      // Add post-processing if any
+      if (form.postProcessing.length > 0) {
         params.params.post_processing = form.postProcessing
       }
 
@@ -609,10 +555,8 @@ export default {
           params
         })
 
-        // Save settings for next time (but not if style is applied)
-        if (!styleApplied.value) {
-          await saveLastUsedSettings()
-        }
+        // Save settings for next time
+        await saveLastUsedSettings()
 
         emit('submit')
       } catch (error) {
@@ -625,7 +569,7 @@ export default {
 
     // Auto-estimate kudos when key parameters change
     watch(
-      () => [form.model, form.n, form.steps, form.width, form.height, styleApplied.value],
+      () => [form.model, form.n, form.steps, form.width, form.height, selectedStyleName.value],
       () => {
         if (form.model) {
           estimateKudos()
@@ -652,12 +596,10 @@ export default {
       aspectLocked,
       selectedStyleName,
       selectedStyleData,
-      styleApplied,
       submitRequest,
       onModelSelect,
       onStyleSelect,
       applyStyle,
-      removeStyle,
       toggleAspectLock,
       onDimensionChange,
       estimateKudos
