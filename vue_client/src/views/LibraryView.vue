@@ -1,5 +1,42 @@
 <template>
   <div class="library-view" :class="{ 'panel-open': isPanelOpen }">
+    <div class="header">
+      <div class="header-left">
+        <h2>Aislingeach</h2>
+        <button @click="openSettings" class="btn-settings-icon" title="Settings">
+          ⚙
+        </button>
+      </div>
+
+      <div class="header-controls">
+        <div class="right-controls">
+          <!-- Active Filters -->
+          <div v-if="filters.requestId || filters.keywords" class="filter-chips">
+            <div v-if="filters.requestId" class="filter-chip">
+              <span>Request: {{ filters.requestId.substring(0, 8) }}</span>
+              <button @click="clearFilter('requestId')" class="chip-remove">×</button>
+            </div>
+            <div v-if="filters.keywords" class="filter-chip">
+              <span>{{ filters.keywords }}</span>
+              <button @click="clearFilter('keywords')" class="chip-remove">×</button>
+            </div>
+          </div>
+
+          <!-- Search Bar -->
+          <div class="search-bar">
+            <input
+              type="text"
+              v-model="searchQuery"
+              @keyup.enter="applySearch"
+              placeholder="Search images..."
+              class="search-input"
+            />
+            <button @click="applySearch" class="btn-search">Search</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Requests Panel Toggle Tab -->
     <div class="panel-tab" @click="togglePanel" :class="{ open: isPanelOpen }">
       <div class="tab-content">
@@ -42,43 +79,6 @@
       @close="deleteModalVisible = false"
       @delete="confirmDelete"
     />
-
-    <div class="header">
-      <div class="header-left">
-        <h2>Aislingeach</h2>
-        <button @click="openSettings" class="btn-settings-icon" title="Settings">
-          ⚙
-        </button>
-      </div>
-
-      <div class="header-controls">
-        <div class="right-controls">
-          <!-- Active Filters -->
-          <div v-if="filters.requestId || filters.keywords" class="filter-chips">
-            <div v-if="filters.requestId" class="filter-chip">
-              <span>Request: {{ filters.requestId.substring(0, 8) }}</span>
-              <button @click="clearFilter('requestId')" class="chip-remove">×</button>
-            </div>
-            <div v-if="filters.keywords" class="filter-chip">
-              <span>{{ filters.keywords }}</span>
-              <button @click="clearFilter('keywords')" class="chip-remove">×</button>
-            </div>
-          </div>
-
-          <!-- Search Bar -->
-          <div class="search-bar">
-            <input
-              type="text"
-              v-model="searchQuery"
-              @keyup.enter="applySearch"
-              placeholder="Search images..."
-              class="search-input"
-            />
-            <button @click="applySearch" class="btn-search">Search</button>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <div v-if="loading && images.length === 0" class="loading">
       Loading images...
@@ -618,16 +618,22 @@ export default {
   padding: 1.5rem 2rem;
   margin-bottom: 0;
   position: sticky;
-  top: 42px;
+  top: 0;
   background: #0a0a0a;
-  z-index: 47;
+  z-index: 50;
   border-bottom: 1px solid #333;
   gap: 2rem;
-  transition: top 0.3s ease-out;
 }
 
-.library-view.panel-open .header {
-  top: calc(42px + 50vh);
+.header::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: #333;
+  z-index: 51;
 }
 
 .header-left {
@@ -866,24 +872,34 @@ export default {
 /* Requests Panel Tab */
 .panel-tab {
   position: sticky;
-  top: 0;
-  z-index: 51;
-  background: #1a1a1a;
-  border-bottom: 1px solid #333;
+  top: 84px;
+  left: 0;
+  right: 0;
+  z-index: 49;
+  display: flex;
+  justify-content: center;
   cursor: pointer;
-  transition: background 0.2s;
+  pointer-events: none;
 }
 
-.panel-tab:hover {
-  background: #222;
-}
-
-.tab-content {
+.panel-tab .tab-content {
+  background: #0d0d0d;
+  border-radius: 0 0 12px 12px;
+  border: 1px solid #222;
+  border-top: none;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  min-width: 350px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 1rem;
-  padding: 0.75rem 2rem;
+  padding: 0.75rem 1.5rem;
+  transition: background 0.2s;
+  pointer-events: all;
+}
+
+.panel-tab:hover .tab-content {
+  background: #151515;
 }
 
 .tab-arrow {
@@ -922,14 +938,15 @@ export default {
 
 /* Requests Panel */
 .requests-panel {
-  position: sticky;
-  top: 42px;
-  background: #0a0a0a;
-  border-bottom: 1px solid #333;
+  background: #0d0d0d;
+  border-bottom: 1px solid #222;
+  border-left: 1px solid #222;
+  border-right: 1px solid #222;
   max-height: 0;
   overflow: hidden;
   transition: max-height 0.3s ease-out;
   z-index: 48;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
 }
 
 .requests-panel.open {
@@ -939,7 +956,7 @@ export default {
 
 .panel-header {
   padding: 1.5rem 2rem 1rem;
-  border-bottom: 1px solid #222;
+  border-bottom: 1px solid #1a1a1a;
 }
 
 .panel-header h3 {
