@@ -173,7 +173,8 @@ export default {
     const requestToDelete = ref(null)
     let pollInterval = null
     let imagesPollInterval = null
-    const lastImageCheck = ref(null)
+    let finalImageCheckTimeout = null
+    const wasActive = ref(false)
 
     // Inject functions from App.vue
     const loadSettingsFromImage = inject('loadSettingsFromImage')
@@ -511,9 +512,27 @@ export default {
       const hasActivity = newStatus.active > 0 || newStatus.pendingRequests > 0
 
       if (hasActivity) {
+        // Clear any pending final check if we become active again
+        if (finalImageCheckTimeout) {
+          clearTimeout(finalImageCheckTimeout)
+          finalImageCheckTimeout = null
+        }
         startImagePolling()
+        wasActive.value = true
       } else {
         stopImagePolling()
+
+        // If we were active and now we're idle, schedule a final check
+        // to catch any images that were still being saved
+        if (wasActive.value) {
+          console.log('Queue became idle, scheduling final image check in 3 seconds...')
+          finalImageCheckTimeout = setTimeout(() => {
+            console.log('Running final image check')
+            checkNewImages()
+            wasActive.value = false
+            finalImageCheckTimeout = null
+          }, 3000)
+        }
       }
     })
 
@@ -542,6 +561,9 @@ export default {
       }
       if (imagesPollInterval) {
         clearInterval(imagesPollInterval)
+      }
+      if (finalImageCheckTimeout) {
+        clearTimeout(finalImageCheckTimeout)
       }
       window.removeEventListener('scroll', handleScroll)
       window.removeEventListener('storage', handleStorageChange)
