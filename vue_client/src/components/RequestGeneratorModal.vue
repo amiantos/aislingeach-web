@@ -531,14 +531,19 @@ export default {
   border-radius: 12px;
   max-width: 700px;
   width: 100%;
+  height: 90vh;
   max-height: 90vh;
   overflow: hidden;
   position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-wrapper {
-  max-height: 90vh;
+  flex: 1;
   overflow: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-header {
@@ -547,8 +552,7 @@ export default {
   align-items: center;
   padding: 1.5rem;
   border-bottom: 1px solid #333;
-  position: sticky;
-  top: 0;
+  flex-shrink: 0;
   background: #1a1a1a;
   z-index: 1;
 }
@@ -576,6 +580,8 @@ export default {
 
 .modal-body {
   padding: 1.5rem;
+  flex: 1;
+  overflow-y: auto;
 }
 
 .form-group {
