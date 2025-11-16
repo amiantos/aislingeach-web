@@ -229,8 +229,8 @@ export const KeywordAlbum = {
 export const UserSettings = {
   get() {
     // For now, we'll just use a single settings record (id = 1)
-    const stmt = db.prepare('SELECT * FROM user_settings WHERE id = 1');
-    let settings = stmt.get();
+    const selectStmt = db.prepare('SELECT * FROM user_settings WHERE id = 1');
+    let settings = selectStmt.get();
 
     // Create default settings if none exist
     if (!settings) {
@@ -248,7 +248,8 @@ export const UserSettings = {
         Date.now()
       );
 
-      settings = stmt.get();
+      // Fetch the newly created record
+      settings = selectStmt.get();
     }
 
     return settings;

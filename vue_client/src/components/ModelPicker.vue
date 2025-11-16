@@ -124,11 +124,20 @@ export default {
     const loadFavorites = async () => {
       try {
         const response = await settingsApi.get()
-        if (response.data.favorite_models) {
-          favorites.value = JSON.parse(response.data.favorite_models)
+        if (response.data && response.data.favorite_models) {
+          try {
+            const parsed = JSON.parse(response.data.favorite_models)
+            favorites.value = Array.isArray(parsed) ? parsed : []
+          } catch (parseError) {
+            console.error('Error parsing favorite_models:', parseError)
+            favorites.value = []
+          }
+        } else {
+          favorites.value = []
         }
       } catch (error) {
         console.error('Error loading favorites:', error)
+        favorites.value = []
       }
     }
 

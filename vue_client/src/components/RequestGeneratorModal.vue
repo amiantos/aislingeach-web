@@ -314,9 +314,15 @@ export default {
     const loadLastUsedSettings = async () => {
       try {
         const response = await settingsApi.get()
-        if (response.data.last_used_settings) {
-          const lastSettings = JSON.parse(response.data.last_used_settings)
-          Object.assign(form, lastSettings)
+        if (response.data && response.data.last_used_settings) {
+          try {
+            const lastSettings = JSON.parse(response.data.last_used_settings)
+            if (lastSettings && typeof lastSettings === 'object') {
+              Object.assign(form, lastSettings)
+            }
+          } catch (parseError) {
+            console.error('Error parsing last_used_settings:', parseError)
+          }
         }
       } catch (error) {
         console.error('Error loading last used settings:', error)
@@ -378,9 +384,27 @@ export default {
     }
 
     const estimateKudos = async () => {
+      // Don't estimate without a model - will fail
+      if (!form.model) {
+        kudosEstimate.value = null
+        return
+      }
+
+      // Use a placeholder prompt if user hasn't entered one yet
+      const hasPrompt = form.prompt && form.prompt.trim().length > 0
+
       try {
         estimating.value = true
         const params = buildRequestParams()
+
+        // If no prompt, use a placeholder for estimation only
+        if (!hasPrompt) {
+          params.prompt = 'placeholder prompt for estimation'
+          if (params.params.negative_prompt) {
+            delete params.params.negative_prompt
+          }
+        }
+
         const response = await imagesApi.estimate(params)
         kudosEstimate.value = response.data.kudos
       } catch (error) {
@@ -461,7 +485,10 @@ export default {
     onMounted(async () => {
       await fetchModels()
       await loadLastUsedSettings()
-      estimateKudos()
+      // Only estimate if we have a model after loading
+      if (form.model) {
+        estimateKudos()
+      }
     })
 
     return {
