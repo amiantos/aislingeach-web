@@ -72,25 +72,6 @@
               </button>
             </div>
 
-            <!-- Worker Preferences (Always Visible) -->
-            <div class="toggles-section">
-              <h4>Worker Preferences</h4>
-              <div class="toggle-grid">
-                <label class="toggle">
-                  <input type="checkbox" v-model="form.slowWorkers" />
-                  <span>Allow Slow Workers</span>
-                </label>
-                <label class="toggle">
-                  <input type="checkbox" v-model="form.trustedWorkers" />
-                  <span>Trusted Workers Only</span>
-                </label>
-                <label class="toggle">
-                  <input type="checkbox" v-model="form.nsfw" />
-                  <span>Allow NSFW</span>
-                </label>
-              </div>
-            </div>
-
             <!-- Full Parameters (Only Visible When NO Style is Applied) -->
             <div v-if="!styleApplied" class="full-parameters">
               <!-- Model Selection -->
@@ -247,25 +228,47 @@
               </div>
             </div>
 
-            <!-- Kudos Estimate -->
-            <div class="kudos-estimate" v-if="kudosEstimate !== null">
-              <span class="kudos-label">Estimated Cost:</span>
-              <span class="kudos-value">{{ kudosEstimate.toLocaleString() }} kudos</span>
-              <button type="button" @click="estimateKudos" class="btn-refresh" :disabled="estimating">
-                ↻
-              </button>
-            </div>
-
-            <!-- Form Actions -->
-            <div class="form-actions">
-              <button type="button" @click="$emit('close')" class="btn btn-cancel">
-                Cancel
-              </button>
-              <button type="submit" class="btn btn-submit" :disabled="submitting">
-                {{ submitting ? 'Submitting...' : 'Generate' }}
-              </button>
+            <!-- Worker Preferences (Always Visible) -->
+            <div class="toggles-section">
+              <h4>Worker Preferences</h4>
+              <div class="toggle-grid">
+                <label class="toggle">
+                  <input type="checkbox" v-model="form.slowWorkers" />
+                  <span>Allow Slow Workers</span>
+                </label>
+                <label class="toggle">
+                  <input type="checkbox" v-model="form.trustedWorkers" />
+                  <span>Trusted Workers Only</span>
+                </label>
+                <label class="toggle">
+                  <input type="checkbox" v-model="form.nsfw" />
+                  <span>Allow NSFW</span>
+                </label>
+              </div>
             </div>
           </form>
+        </div>
+
+        <!-- Modal Footer (Static at bottom) -->
+        <div class="modal-footer">
+          <!-- Kudos Estimate -->
+          <div class="kudos-estimate" v-if="kudosEstimate !== null">
+            <span class="kudos-label">Estimated Cost:</span>
+            <span class="kudos-value">{{ kudosEstimate.toLocaleString() }} kudos</span>
+            <button type="button" @click="estimateKudos" class="btn-refresh" :disabled="estimating">
+              ↻
+            </button>
+          </div>
+
+          <!-- Form Actions -->
+          <div class="form-actions">
+            <button type="button" @click="$emit('close')" class="btn btn-cancel">
+              Cancel
+            </button>
+            <button type="submit" @click="submitRequest" class="btn btn-submit" :disabled="submitting">
+              {{ submitting ? 'Submitting...' : 'Generate' }}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -734,6 +737,14 @@ export default {
   padding: 1.5rem;
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.modal-footer {
+  flex-shrink: 0;
+  padding: 1.5rem;
+  border-top: 1px solid #333;
+  background: #1a1a1a;
 }
 
 .form-group {
@@ -976,7 +987,7 @@ export default {
   background: rgba(0, 122, 255, 0.1);
   border: 1px solid rgba(0, 122, 255, 0.3);
   border-radius: 6px;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 .kudos-label {
@@ -1014,9 +1025,6 @@ export default {
 .form-actions {
   display: flex;
   gap: 1rem;
-  margin-top: 2rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid #333;
 }
 
 .btn {
