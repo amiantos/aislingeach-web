@@ -367,13 +367,45 @@ export default {
     })
 
 
-    // Fetch available models from AI Horde
-    const fetchModels = async () => {
+    // Fetch available models from AI Horde (with caching)
+    const fetchModels = async (forceRefresh = false) => {
       try {
+        const cacheKey = 'aiHordeModels'
+        const cacheTimeKey = 'aiHordeModelsTime'
+        const cacheMaxAge = 60 * 60 * 1000 // 1 hour in milliseconds
+
+        // Check cache first unless force refresh
+        if (!forceRefresh) {
+          const cachedModels = localStorage.getItem(cacheKey)
+          const cachedTime = localStorage.getItem(cacheTimeKey)
+
+          if (cachedModels && cachedTime) {
+            const age = Date.now() - parseInt(cachedTime)
+            if (age < cacheMaxAge) {
+              // Use cached models
+              try {
+                const models = JSON.parse(cachedModels)
+                if (models.length > 0 && !form.model) {
+                  form.model = models[0].name
+                }
+                return
+              } catch (parseError) {
+                console.error('Error parsing cached models:', parseError)
+                // Fall through to fetch from server
+              }
+            }
+          }
+        }
+
+        // Fetch from server
         const response = await axios.get('https://stablehorde.net/api/v2/status/models')
         const models = response.data
           .filter(model => model.type === 'image' && model.count > 0)
           .sort((a, b) => b.count - a.count)
+
+        // Cache the models
+        localStorage.setItem(cacheKey, JSON.stringify(models))
+        localStorage.setItem(cacheTimeKey, Date.now().toString())
 
         // Set default to most popular model
         if (models.length > 0 && !form.model) {
@@ -809,7 +841,8 @@ export default {
       onDimensionChange,
       estimateKudos,
       loadSettings,
-      loadRandomPreset
+      loadRandomPreset,
+      fetchModels
     }
   }
 }
