@@ -218,34 +218,14 @@ export default {
       }
     }
 
-    // Load filters from localStorage
+    // Load filters from localStorage - removed, filters reset on page load
     const loadFilters = () => {
-      try {
-        const saved = localStorage.getItem('libraryFilters')
-        if (saved) {
-          const parsed = JSON.parse(saved)
-          // Only restore the boolean filter flags, not requestId/keywords
-          // (those are ephemeral and could reference deleted requests)
-          if (parsed.showFavoritesOnly !== undefined) {
-            filters.value.showFavoritesOnly = parsed.showFavoritesOnly
-          }
-          if (parsed.showHidden !== undefined) {
-            filters.value.showHidden = parsed.showHidden
-          }
-        }
-      } catch (error) {
-        console.error('Error loading filters:', error)
-      }
+      // Filters no longer persist across page loads
     }
 
-    // Save filters to localStorage
+    // Save filters to localStorage - removed
     const saveFilters = () => {
-      // Only persist the boolean filter flags, not requestId/keywords
-      const toSave = {
-        showFavoritesOnly: filters.value.showFavoritesOnly,
-        showHidden: filters.value.showHidden
-      }
-      localStorage.setItem('libraryFilters', JSON.stringify(toSave))
+      // Filters no longer persist across page loads
     }
 
     const currentImageIndex = computed(() => {
@@ -255,22 +235,18 @@ export default {
 
     const filteredImages = computed(() => {
       return images.value.filter(image => {
-        // By default, hide hidden images unless showHidden is enabled
-        if (!filters.value.showHidden && image.is_hidden) {
-          return false
+        // If showing favorites only, show all favorited images (including hidden ones)
+        if (filters.value.showFavoritesOnly) {
+          return !!image.is_favorite
         }
 
-        // If showHidden is enabled, only show hidden images
-        if (filters.value.showHidden && !image.is_hidden) {
-          return false
+        // If showing hidden only, show all hidden images (including favorited ones)
+        if (filters.value.showHidden) {
+          return !!image.is_hidden
         }
 
-        // If showFavoritesOnly is enabled, only show favorites
-        if (filters.value.showFavoritesOnly && !image.is_favorite) {
-          return false
-        }
-
-        return true
+        // Default view: show all non-hidden images
+        return !image.is_hidden
       })
     })
 
@@ -346,7 +322,6 @@ export default {
 
     const setFilter = (filterType, value) => {
       filters.value[filterType] = value
-      saveFilters()
       offset.value = 0
       hasMore.value = true
       fetchImages()
@@ -354,7 +329,6 @@ export default {
 
     const clearFilter = (filterType) => {
       filters.value[filterType] = null
-      saveFilters()
       offset.value = 0
       hasMore.value = true
       fetchImages()
@@ -372,7 +346,6 @@ export default {
       filters.value.showFavoritesOnly = false
       filters.value.showHidden = false
       searchQuery.value = ''
-      saveFilters()
       offset.value = 0
       hasMore.value = true
       fetchImages()
@@ -380,12 +353,18 @@ export default {
 
     const toggleFavoritesFilter = () => {
       filters.value.showFavoritesOnly = !filters.value.showFavoritesOnly
-      saveFilters()
+      // If enabling favorites, disable hidden
+      if (filters.value.showFavoritesOnly) {
+        filters.value.showHidden = false
+      }
     }
 
     const toggleHiddenFilter = () => {
       filters.value.showHidden = !filters.value.showHidden
-      saveFilters()
+      // If enabling hidden, disable favorites
+      if (filters.value.showHidden) {
+        filters.value.showFavoritesOnly = false
+      }
     }
 
     const navigateImage = (direction) => {
