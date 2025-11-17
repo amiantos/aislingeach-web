@@ -103,28 +103,28 @@ defineExpose({ focus, clear });
 .pin-dot {
   width: 60px;
   height: 60px;
-  border: 2px solid var(--border-color, #ddd);
+  border: 2px solid #333;
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--bg-secondary, #fff);
+  background-color: #0f0f0f;
   transition: all 0.2s ease;
 }
 
 .pin-dot.active {
-  border-color: var(--primary-color, #007bff);
+  border-color: #007bff;
   box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
 }
 
 .pin-dot.filled {
-  border-color: var(--primary-color, #007bff);
+  border-color: #007bff;
 }
 
 .dot {
   width: 16px;
   height: 16px;
-  background-color: var(--text-primary, #333);
+  background-color: #fff;
   border-radius: 50%;
 }
 

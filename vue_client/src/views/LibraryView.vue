@@ -462,6 +462,7 @@ export default {
       if (props.imageId && images.value.length > 0) {
         const image = images.value.find(img => img.uuid === props.imageId)
         if (image) {
+          // Always show the image, ImageModal will handle blur protection for hidden images
           selectedImage.value = image
         } else {
           // Image not in current list, try to fetch it

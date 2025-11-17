@@ -144,7 +144,7 @@ const handleBackdropClick = () => {
 }
 
 .modal-content {
-  background-color: var(--bg-primary, #fff);
+  background-color: #1a1a1a;
   border-radius: 8px;
   max-width: 500px;
   width: 90%;
@@ -165,7 +165,7 @@ const handleBackdropClick = () => {
 .modal-header h2 {
   margin: 0;
   font-size: 24px;
-  color: var(--text-primary, #333);
+  color: #fff;
 }
 
 .modal-body {
@@ -173,7 +173,7 @@ const handleBackdropClick = () => {
 }
 
 .help-text {
-  color: var(--text-secondary, #666);
+  color: #999;
   line-height: 1.5;
   margin-bottom: 32px;
 }
@@ -188,7 +188,7 @@ const handleBackdropClick = () => {
 
 .pin-section label {
   font-weight: 500;
-  color: var(--text-primary, #333);
+  color: #fff;
   font-size: 16px;
 }
 

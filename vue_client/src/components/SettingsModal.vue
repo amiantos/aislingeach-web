@@ -259,7 +259,7 @@ export default {
 
         // Then load from server
         const response = await settingsApi.get()
-        settings.value = response.data
+        settings.value = response
         if (settings.value.hasApiKey) {
           loadUserInfo()
         }
@@ -284,7 +284,7 @@ export default {
       try {
         saving.value = true
         const response = await settingsApi.update({ apiKey: apiKey.value })
-        settings.value = response.data
+        settings.value = response
         apiKey.value = ''
         alert('API key saved successfully!')
 
@@ -308,9 +308,9 @@ export default {
         }
         userInfoError.value = null
         const response = await settingsApi.getHordeUser()
-        userInfo.value = response.data
+        userInfo.value = response
         // Cache user info to localStorage for instant loading next time
-        localStorage.setItem('userInfo', JSON.stringify(response.data))
+        localStorage.setItem('userInfo', JSON.stringify(response))
       } catch (error) {
         console.error('Error loading user info:', error)
         userInfoError.value = 'Failed to load account information. Check your API key.'

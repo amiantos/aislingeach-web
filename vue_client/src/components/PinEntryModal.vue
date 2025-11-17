@@ -86,7 +86,7 @@ onMounted(() => {
 }
 
 .modal-content {
-  background-color: var(--bg-primary, #fff);
+  background-color: #1a1a1a;
   border-radius: 8px;
   max-width: 500px;
   width: 90%;
@@ -109,7 +109,7 @@ onMounted(() => {
 .modal-header h2 {
   margin: 0;
   font-size: 24px;
-  color: var(--text-primary, #333);
+  color: #fff;
 }
 
 .btn-close {
@@ -117,7 +117,7 @@ onMounted(() => {
   border: none;
   font-size: 32px;
   cursor: pointer;
-  color: var(--text-secondary, #666);
+  color: #999;
   padding: 0;
   width: 32px;
   height: 32px;
@@ -128,7 +128,7 @@ onMounted(() => {
 }
 
 .btn-close:hover {
-  color: var(--text-primary, #333);
+  color: #fff;
 }
 
 .modal-body {
@@ -136,7 +136,7 @@ onMounted(() => {
 }
 
 .help-text {
-  color: var(--text-secondary, #666);
+  color: #999;
   line-height: 1.5;
   margin-bottom: 32px;
   text-align: center;
