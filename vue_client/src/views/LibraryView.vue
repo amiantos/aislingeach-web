@@ -180,6 +180,7 @@ export default {
     const loadSettingsFromImage = inject('loadSettingsFromImage')
     const openSettingsModal = inject('openSettingsModal')
     const openRequestModal = inject('openRequestModal')
+    const shouldOpenRequestsPanel = inject('shouldOpenRequestsPanel')
 
     const openSettings = () => {
       if (openSettingsModal) {
@@ -503,6 +504,17 @@ export default {
         hasMore.value = true
         fetchImages()
       }
+    }
+
+    // Watch for signal to open requests panel
+    if (shouldOpenRequestsPanel) {
+      watch(shouldOpenRequestsPanel, (shouldOpen) => {
+        if (shouldOpen) {
+          isPanelOpen.value = true
+          // Reset the signal
+          shouldOpenRequestsPanel.value = false
+        }
+      })
     }
 
     // Watch queue status to start/stop image polling
