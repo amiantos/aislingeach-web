@@ -301,7 +301,7 @@ export default {
 
     const viewImage = (image) => {
       selectedImage.value = image
-      updateUrl(image.uuid)
+      updateImageUrl(image.uuid)
     }
 
     const closeImage = () => {
@@ -329,7 +329,7 @@ export default {
       offset.value = 0
       hasMore.value = true
       fetchImages()
-      updateUrl()
+      updateFilterUrl()
     }
 
     const applySearch = () => {
@@ -341,7 +341,7 @@ export default {
         offset.value = 0
         hasMore.value = true
         fetchImages()
-        updateUrl()
+        updateFilterUrl()
       }
     }
 
@@ -354,7 +354,7 @@ export default {
       offset.value = 0
       hasMore.value = true
       fetchImages()
-      updateUrl()
+      updateFilterUrl()
     }
 
     const navigateImage = (direction) => {
@@ -368,11 +368,11 @@ export default {
       const newImage = images.value[newIndex]
       if (newImage) {
         selectedImage.value = newImage
-        updateUrl(newImage.uuid)
+        updateImageUrl(newImage.uuid)
       }
     }
 
-    const updateUrl = (imageId) => {
+    const updateImageUrl = (imageId) => {
       // Always use canonical image URL
       // Use push for first image view, replace for navigation between images
       if (!selectedImage.value) {
@@ -560,7 +560,7 @@ export default {
       }
     }
 
-    const updateUrl = () => {
+    const updateFilterUrl = () => {
       // Build the path based on current filters
       let path = '/'
       if (filters.value.showFavoritesOnly) {
@@ -632,7 +632,7 @@ export default {
       offset.value = 0
       hasMore.value = true
       fetchImages()
-      updateUrl()
+      updateFilterUrl()
     }
 
     // Listen for filter changes from localStorage (e.g., from other tabs or RequestCard)
