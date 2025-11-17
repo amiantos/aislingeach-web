@@ -179,6 +179,7 @@ export default {
       showFavoritesOnly: false,
       showHidden: false
     })
+    const routeBeforeModal = ref(null) // Store route before opening modal
 
     // Requests panel state
     const isPanelOpen = ref(false)
@@ -300,13 +301,30 @@ export default {
     }
 
     const viewImage = (image) => {
+      // Store the current route before opening the modal
+      if (!selectedImage.value) {
+        routeBeforeModal.value = {
+          path: route.path,
+          query: { ...route.query }
+        }
+      }
       selectedImage.value = image
       updateImageUrl(image.uuid)
     }
 
     const closeImage = () => {
       selectedImage.value = null
-      router.replace('/')
+      // Restore the route to what it was before opening the modal
+      if (routeBeforeModal.value) {
+        router.replace({
+          path: routeBeforeModal.value.path,
+          query: routeBeforeModal.value.query
+        })
+        routeBeforeModal.value = null
+      } else {
+        // Fallback to root if no stored route (shouldn't happen)
+        router.replace('/')
+      }
     }
 
     const setFilter = (filterType, value) => {
