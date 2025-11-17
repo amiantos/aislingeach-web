@@ -5,11 +5,32 @@ const router = express.Router();
 
 /**
  * GET /api/albums
- * Get all albums (system albums: Favorites, Hidden)
+ * Get all albums (system albums: All Images, Favorites, Hidden)
  */
 router.get('/', (req, res) => {
   try {
     const albums = [];
+
+    // All Images album
+    const allCount = db.prepare(`
+      SELECT COUNT(*) as count FROM generated_images
+      WHERE is_trashed = 0 AND is_hidden = 0
+    `).get();
+
+    const allThumbnail = db.prepare(`
+      SELECT uuid FROM generated_images
+      WHERE is_trashed = 0 AND is_hidden = 0
+      ORDER BY date_created DESC
+      LIMIT 1
+    `).get();
+
+    albums.push({
+      id: 'all',
+      name: 'All Images',
+      type: 'system',
+      count: allCount.count,
+      thumbnail: allThumbnail ? allThumbnail.uuid : null
+    });
 
     // Favorites album
     const favoritesCount = db.prepare(`

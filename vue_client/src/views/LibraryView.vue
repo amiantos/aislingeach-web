@@ -230,11 +230,11 @@ export default {
 
     const galleryTitle = computed(() => {
       if (filters.value.showFavoritesOnly) {
-        return 'Favorites Gallery'
+        return 'Favorite Images'
       } else if (filters.value.showHidden) {
-        return 'Hidden Gallery'
+        return 'Hidden Images'
       }
-      return 'Your Gallery'
+      return 'All Images'
     })
 
     const fetchImages = async (append = false) => {
@@ -551,7 +551,10 @@ export default {
       filters.value.requestId = null
       filters.value.keywords = null
 
-      if (album.id === 'favorites') {
+      if (album.id === 'all') {
+        filters.value.showFavoritesOnly = false
+        filters.value.showHidden = false
+      } else if (album.id === 'favorites') {
         filters.value.showFavoritesOnly = true
         filters.value.showHidden = false
       } else if (album.id === 'hidden') {

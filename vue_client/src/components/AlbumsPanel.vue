@@ -26,7 +26,8 @@
               :alt="album.name"
             />
             <div v-else class="album-icon">
-              <i v-if="album.id === 'favorites'" class="fa-solid fa-star"></i>
+              <i v-if="album.id === 'all'" class="fa-solid fa-images"></i>
+              <i v-else-if="album.id === 'favorites'" class="fa-solid fa-star"></i>
               <i v-else-if="album.id === 'hidden'" class="fa-solid fa-eye-slash"></i>
             </div>
           </div>
@@ -180,6 +181,10 @@ export default {
   align-items: center;
   justify-content: center;
   font-size: 1.5rem;
+}
+
+.album-icon i.fa-images {
+  color: #007AFF;
 }
 
 .album-icon i.fa-star {
