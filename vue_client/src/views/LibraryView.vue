@@ -461,8 +461,7 @@ export default {
       localStorage.setItem('libraryFilters', JSON.stringify(newFilters))
       filters.value = newFilters
 
-      // Close the panel
-      isPanelOpen.value = false
+      // Don't close the panel - keep it open for user convenience
 
       // Refresh images
       offset.value = 0
@@ -619,7 +618,7 @@ export default {
 }
 
 .library-view.panel-open .header {
-  top: 50vh;
+  top: 25vh;
 }
 
 .header-content {
@@ -940,7 +939,7 @@ export default {
 }
 
 .requests-panel.open {
-  max-height: 50vh;
+  max-height: 25vh;
   overflow-y: auto;
 }
 
