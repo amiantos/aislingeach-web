@@ -43,12 +43,26 @@
 
         <div class="actions">
           <button
+            @click="toggleFavorite"
+            :class="['btn', 'btn-icon', 'btn-favorite', { 'active': isFavorite }]"
+            :title="isFavorite ? 'Remove from favorites' : 'Add to favorites'"
+          >
+            <i class="fa-star" :class="isFavorite ? 'fa-solid' : 'fa-regular'"></i>
+          </button>
+          <button
+            @click="toggleHidden"
+            :class="['btn', 'btn-icon', 'btn-hidden', { 'active': isHidden }]"
+            :title="isHidden ? 'Unhide image' : 'Hide image'"
+          >
+            <i :class="isHidden ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash'"></i>
+          </button>
+          <button
             v-if="hasSettings"
             @click="$emit('load-settings', false)"
             class="btn btn-load-settings"
             title="Load generation settings from this image"
           >
-            Load Settings
+            <i class="fa-solid fa-sliders"></i> Load Settings
           </button>
           <button
             v-if="hasSettings"
@@ -56,13 +70,13 @@
             class="btn btn-load-settings-seed"
             title="Load generation settings including seed from this image"
           >
-            Load Settings + Seed
+            <i class="fa-solid fa-sliders"></i> Load Settings + Seed
           </button>
           <a :href="imageUrl" :download="`aislingeach-${image.uuid}.png`" class="btn btn-download">
-            Download
+            <i class="fa-solid fa-download"></i> Download
           </a>
-          <button @click="$emit('delete', image.uuid)" class="btn btn-delete">
-            Delete
+          <button @click="$emit('delete', image.uuid)" class="btn btn-icon btn-delete" title="Delete image">
+            <i class="fa-solid fa-trash"></i>
           </button>
         </div>
       </div>
@@ -71,7 +85,7 @@
 </template>
 
 <script>
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import { imagesApi } from '../api/client.js'
 
 export default {
@@ -90,8 +104,17 @@ export default {
       default: -1
     }
   },
-  emits: ['close', 'delete', 'navigate', 'load-settings'],
+  emits: ['close', 'delete', 'navigate', 'load-settings', 'update'],
   setup(props, { emit }) {
+    const isFavorite = ref(!!props.image.is_favorite)
+    const isHidden = ref(!!props.image.is_hidden)
+
+    // Watch for prop changes when navigating between images
+    watch(() => props.image, (newImage) => {
+      isFavorite.value = !!newImage.is_favorite
+      isHidden.value = !!newImage.is_hidden
+    })
+
     const imageUrl = computed(() => {
       return imagesApi.getImageUrl(props.image.uuid)
     })
@@ -107,6 +130,32 @@ export default {
     const formatDate = (timestamp) => {
       const date = new Date(timestamp)
       return date.toLocaleString()
+    }
+
+    const toggleFavorite = async () => {
+      try {
+        const newValue = !isFavorite.value
+        await imagesApi.update(props.image.uuid, { isFavorite: newValue })
+        isFavorite.value = newValue
+        props.image.is_favorite = newValue ? 1 : 0
+        emit('update', { uuid: props.image.uuid, is_favorite: newValue ? 1 : 0 })
+      } catch (error) {
+        console.error('Error toggling favorite:', error)
+        alert('Failed to update favorite status')
+      }
+    }
+
+    const toggleHidden = async () => {
+      try {
+        const newValue = !isHidden.value
+        await imagesApi.update(props.image.uuid, { isHidden: newValue })
+        isHidden.value = newValue
+        props.image.is_hidden = newValue ? 1 : 0
+        emit('update', { uuid: props.image.uuid, is_hidden: newValue ? 1 : 0 })
+      } catch (error) {
+        console.error('Error toggling hidden:', error)
+        alert('Failed to update hidden status')
+      }
     }
 
     const handleKeydown = (e) => {
@@ -135,7 +184,11 @@ export default {
       imageUrl,
       showNavigation,
       hasSettings,
-      formatDate
+      formatDate,
+      isFavorite,
+      isHidden,
+      toggleFavorite,
+      toggleHidden
     }
   }
 }
@@ -284,6 +337,15 @@ export default {
   display: inline-block;
 }
 
+.btn-icon {
+  padding: 0.6rem;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .btn-load-settings {
   background: #34C759;
   color: white;
@@ -320,5 +382,39 @@ export default {
 .btn-delete:hover {
   background: #3a1a1a;
   border-color: #ff4a4a;
+}
+
+.btn-favorite {
+  background: transparent;
+  color: #FFD60A;
+  border: 1px solid #3a3a1a;
+}
+
+.btn-favorite:hover {
+  background: #3a3a1a;
+  border-color: #FFD60A;
+}
+
+.btn-favorite.active {
+  background: #FFD60A;
+  color: #000;
+  border-color: #FFD60A;
+}
+
+.btn-hidden {
+  background: transparent;
+  color: #999;
+  border: 1px solid #2a2a2a;
+}
+
+.btn-hidden:hover {
+  background: #2a2a2a;
+  border-color: #999;
+}
+
+.btn-hidden.active {
+  background: #666;
+  color: #fff;
+  border-color: #666;
 }
 </style>

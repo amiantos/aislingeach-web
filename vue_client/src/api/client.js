@@ -33,16 +33,30 @@ export const requestsApi = {
 }
 
 export const imagesApi = {
-  getAll(limit = 100, offset = 0) {
-    return apiClient.get(`/images?limit=${limit}&offset=${offset}`)
+  getAll(limit = 100, offset = 0, filters = {}) {
+    let url = `/images?limit=${limit}&offset=${offset}`
+    if (filters.showFavoritesOnly) {
+      url += '&favorites=true'
+    }
+    if (filters.showHidden) {
+      url += '&hidden=true'
+    }
+    return apiClient.get(url)
   },
 
   getByRequestId(requestId, limit = 100) {
     return apiClient.get(`/images/request/${requestId}?limit=${limit}`)
   },
 
-  search(keywords, limit = 100) {
-    return apiClient.get(`/images/search?q=${encodeURIComponent(keywords)}&limit=${limit}`)
+  search(keywords, limit = 100, filters = {}) {
+    let url = `/images/search?q=${encodeURIComponent(keywords)}&limit=${limit}`
+    if (filters.showFavoritesOnly) {
+      url += '&favorites=true'
+    }
+    if (filters.showHidden) {
+      url += '&hidden=true'
+    }
+    return apiClient.get(url)
   },
 
   getById(id) {
@@ -95,6 +109,23 @@ export const stylesApi = {
 
   refresh() {
     return apiClient.post('/styles/refresh')
+  }
+}
+
+export const albumsApi = {
+  getAll(filters = {}) {
+    let url = '/albums'
+    const params = []
+    if (filters.showFavoritesOnly) {
+      params.push('favorites=true')
+    }
+    if (filters.showHidden) {
+      params.push('hidden=true')
+    }
+    if (params.length > 0) {
+      url += '?' + params.join('&')
+    }
+    return apiClient.get(url)
   }
 }
 

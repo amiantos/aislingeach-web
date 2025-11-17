@@ -49,22 +49,34 @@ router.post('/', (req, res) => {
 });
 
 // Delete a request
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
-    const { imageAction } = req.query; // 'prune' or 'keep'
+    const { imageAction } = req.query; // 'prune', 'keep', or 'hide'
     const requestId = req.params.id;
+
+    // Cancel the request on AI Horde if it's still active
+    await queueManager.cancelRequest(requestId);
 
     // Delete any pending downloads for this request
     const pendingDownloads = HordePendingDownload.findAll().filter(d => d.request_id === requestId);
     pendingDownloads.forEach(d => HordePendingDownload.delete(d.uuid));
 
     if (imageAction === 'prune') {
-      // Delete all non-favorited images (for now, all images since favoriting doesn't exist)
+      // Delete all non-favorited and non-hidden images
       const images = GeneratedImage.findByRequestId(requestId);
       images.forEach(img => {
-        if (!img.is_favorite) {
+        if (!img.is_favorite && !img.is_hidden) {
           GeneratedImage.delete(img.uuid);
+        } else {
+          // Remove request_id from favorited/hidden images
+          GeneratedImage.update(img.uuid, { requestId: null });
         }
+      });
+    } else if (imageAction === 'hide') {
+      // Mark all images as hidden and remove the request_id reference
+      const images = GeneratedImage.findByRequestId(requestId);
+      images.forEach(img => {
+        GeneratedImage.update(img.uuid, { isHidden: true, requestId: null });
       });
     } else if (imageAction === 'keep') {
       // Keep all images by removing the request_id reference

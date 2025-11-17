@@ -1,5 +1,13 @@
 <template>
   <div class="library-view" :class="{ 'panel-open': isPanelOpen }">
+    <!-- Albums Panel -->
+    <AlbumsPanel
+      :albums="albums"
+      :isOpen="isAlbumsPanelOpen"
+      @close="isAlbumsPanelOpen = false"
+      @select="selectAlbum"
+    />
+
     <!-- Requests Panel -->
     <div class="requests-panel" :class="{ open: isPanelOpen }">
       <div class="panel-content">
@@ -22,6 +30,7 @@
 
     <DeleteRequestModal
       v-if="deleteModalVisible"
+      :request="requestToDelete"
       @close="deleteModalVisible = false"
       @delete="confirmDelete"
     />
@@ -29,20 +38,23 @@
     <div class="header">
       <div class="header-content">
         <div class="header-left">
-          <h2>Aislingeach</h2>
+          <button @click="toggleAlbumsPanel" class="btn-albums-toggle" title="Albums">
+            <i class="fa-solid fa-folder"></i>
+          </button>
+          <h2>{{ galleryTitle }}</h2>
         </div>
 
         <div class="header-controls">
           <div class="right-controls">
             <!-- Active Filters -->
-            <div v-if="filters.requestId || filters.keywords" class="filter-chips">
+            <div v-if="filters.requestId || filters.keywords.length > 0" class="filter-chips">
               <div v-if="filters.requestId" class="filter-chip">
                 <span>Request: {{ filters.requestId.substring(0, 8) }}</span>
                 <button @click="clearFilter('requestId')" class="chip-remove">×</button>
               </div>
-              <div v-if="filters.keywords" class="filter-chip">
-                <span>{{ filters.keywords }}</span>
-                <button @click="clearFilter('keywords')" class="chip-remove">×</button>
+              <div v-for="keyword in filters.keywords" :key="keyword" class="filter-chip">
+                <span>{{ keyword }}</span>
+                <button @click="clearFilter('keywords', keyword)" class="chip-remove">×</button>
               </div>
             </div>
 
@@ -75,8 +87,8 @@
     </div>
 
     <div v-else-if="images.length === 0" class="empty-state">
-      <p>No images yet</p>
-      <p class="hint">Generate some images to see them here</p>
+      <p>No images found</p>
+      <p class="hint">Try adjusting your filters or generate some images</p>
     </div>
 
     <div v-else class="image-grid" ref="gridContainer">
@@ -91,6 +103,9 @@
           :alt="image.prompt_simple"
           loading="lazy"
         />
+        <div v-if="image.is_favorite" class="favorite-badge" title="Favorited">
+          <i class="fa-solid fa-star"></i>
+        </div>
         <div class="image-overlay">
           <div class="image-info">
             <span class="date">{{ formatDate(image.date_created) }}</span>
@@ -112,16 +127,17 @@
       @delete="deleteImage"
       @navigate="navigateImage"
       @load-settings="handleLoadSettings"
+      @update="handleImageUpdate"
     />
 
     <!-- Floating Action Button (Settings) -->
     <button @click="openSettings" class="fab fab-settings" title="Settings">
-      ⚙
+      <i class="fa-solid fa-gear"></i>
     </button>
 
     <!-- Floating Action Button (New Request) -->
     <button @click="openNewRequest" class="fab fab-new" title="New Request">
-      +
+      <i class="fa-solid fa-plus"></i>
     </button>
   </div>
 </template>
@@ -129,17 +145,19 @@
 <script>
 import { ref, computed, onMounted, onUnmounted, watch, inject } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { imagesApi, requestsApi } from '../api/client.js'
+import { imagesApi, requestsApi, albumsApi } from '../api/client.js'
 import ImageModal from '../components/ImageModal.vue'
 import RequestCard from '../components/RequestCard.vue'
 import DeleteRequestModal from '../components/DeleteRequestModal.vue'
+import AlbumsPanel from '../components/AlbumsPanel.vue'
 
 export default {
   name: 'LibraryView',
   components: {
     ImageModal,
     RequestCard,
-    DeleteRequestModal
+    DeleteRequestModal,
+    AlbumsPanel
   },
   props: {
     imageId: String // selected image ID from URL
@@ -157,7 +175,9 @@ export default {
     const searchQuery = ref('')
     const filters = ref({
       requestId: null,
-      keywords: null
+      keywords: [], // Changed to array for multiple keywords
+      showFavoritesOnly: false,
+      showHidden: false
     })
 
     // Requests panel state
@@ -170,6 +190,10 @@ export default {
     let imagesPollInterval = null
     let finalImageCheckTimeout = null
     const wasActive = ref(false)
+
+    // Albums panel state
+    const isAlbumsPanelOpen = ref(false)
+    const albums = ref([])
 
     // Inject functions from App.vue
     const loadSettingsFromImage = inject('loadSettingsFromImage')
@@ -189,27 +213,28 @@ export default {
       }
     }
 
-    // Load filters from localStorage
+    // Load filters from localStorage - removed, filters reset on page load
     const loadFilters = () => {
-      try {
-        const saved = localStorage.getItem('libraryFilters')
-        if (saved) {
-          const parsed = JSON.parse(saved)
-          filters.value = { ...filters.value, ...parsed }
-        }
-      } catch (error) {
-        console.error('Error loading filters:', error)
-      }
+      // Filters no longer persist across page loads
     }
 
-    // Save filters to localStorage
+    // Save filters to localStorage - removed
     const saveFilters = () => {
-      localStorage.setItem('libraryFilters', JSON.stringify(filters.value))
+      // Filters no longer persist across page loads
     }
 
     const currentImageIndex = computed(() => {
       if (!selectedImage.value) return -1
       return images.value.findIndex(img => img.uuid === selectedImage.value.uuid)
+    })
+
+    const galleryTitle = computed(() => {
+      if (filters.value.showFavoritesOnly) {
+        return 'Favorite Images'
+      } else if (filters.value.showHidden) {
+        return 'Hidden Images'
+      }
+      return 'All Images'
     })
 
     const fetchImages = async (append = false) => {
@@ -222,11 +247,13 @@ export default {
         if (filters.value.requestId) {
           response = await imagesApi.getByRequestId(filters.value.requestId, limit)
           hasMore.value = false // Request images don't paginate
-        } else if (filters.value.keywords) {
-          response = await imagesApi.search(filters.value.keywords, limit)
+        } else if (filters.value.keywords.length > 0) {
+          // Join keywords with space for search
+          const searchTerms = filters.value.keywords.join(' ')
+          response = await imagesApi.search(searchTerms, limit, filters.value)
           hasMore.value = false // Search doesn't paginate yet
         } else {
-          response = await imagesApi.getAll(limit, offset.value)
+          response = await imagesApi.getAll(limit, offset.value, filters.value)
         }
 
         const newImages = response.data
@@ -274,7 +301,7 @@ export default {
 
     const viewImage = (image) => {
       selectedImage.value = image
-      updateUrl(image.uuid)
+      updateImageUrl(image.uuid)
     }
 
     const closeImage = () => {
@@ -284,34 +311,50 @@ export default {
 
     const setFilter = (filterType, value) => {
       filters.value[filterType] = value
-      saveFilters()
       offset.value = 0
       hasMore.value = true
       fetchImages()
     }
 
-    const clearFilter = (filterType) => {
-      filters.value[filterType] = null
-      saveFilters()
+    const clearFilter = (filterType, value = null) => {
+      if (filterType === 'keywords' && value) {
+        // Remove specific keyword from array
+        filters.value.keywords = filters.value.keywords.filter(k => k !== value)
+      } else if (filterType === 'keywords') {
+        // Clear all keywords
+        filters.value.keywords = []
+      } else {
+        filters.value[filterType] = null
+      }
       offset.value = 0
       hasMore.value = true
       fetchImages()
+      updateFilterUrl()
     }
 
     const applySearch = () => {
-      if (searchQuery.value.trim()) {
-        setFilter('keywords', searchQuery.value.trim())
+      const term = searchQuery.value.trim()
+      if (term && !filters.value.keywords.includes(term)) {
+        // Add to keywords array if not already present
+        filters.value.keywords.push(term)
+        searchQuery.value = '' // Clear search box
+        offset.value = 0
+        hasMore.value = true
+        fetchImages()
+        updateFilterUrl()
       }
     }
 
     const clearAllFilters = () => {
       filters.value.requestId = null
-      filters.value.keywords = null
+      filters.value.keywords = []
+      filters.value.showFavoritesOnly = false
+      filters.value.showHidden = false
       searchQuery.value = ''
-      saveFilters()
       offset.value = 0
       hasMore.value = true
       fetchImages()
+      updateFilterUrl()
     }
 
     const navigateImage = (direction) => {
@@ -325,11 +368,11 @@ export default {
       const newImage = images.value[newIndex]
       if (newImage) {
         selectedImage.value = newImage
-        updateUrl(newImage.uuid)
+        updateImageUrl(newImage.uuid)
       }
     }
 
-    const updateUrl = (imageId) => {
+    const updateImageUrl = (imageId) => {
       // Always use canonical image URL
       // Use push for first image view, replace for navigation between images
       if (!selectedImage.value) {
@@ -346,6 +389,8 @@ export default {
         await imagesApi.delete(imageId)
         images.value = images.value.filter(img => img.uuid !== imageId)
         selectedImage.value = null
+        // Refresh albums since counts and keywords may have changed
+        fetchAlbums()
       } catch (error) {
         console.error('Error deleting image:', error)
       }
@@ -354,6 +399,18 @@ export default {
     const handleLoadSettings = (includeSeed) => {
       if (selectedImage.value && loadSettingsFromImage) {
         loadSettingsFromImage(selectedImage.value, includeSeed)
+      }
+    }
+
+    const handleImageUpdate = (updates) => {
+      // Update the image in the images array
+      const imageIndex = images.value.findIndex(img => img.uuid === updates.uuid)
+      if (imageIndex !== -1) {
+        images.value[imageIndex] = { ...images.value[imageIndex], ...updates }
+        // Refresh albums if favorite or hidden status changed
+        if ('is_favorite' in updates || 'is_hidden' in updates) {
+          fetchAlbums()
+        }
       }
     }
 
@@ -409,14 +466,14 @@ export default {
     }
 
     const checkNewImages = async () => {
-      // Don't check for new images if we're filtering (only check on main library view)
-      if (filters.value.requestId || filters.value.keywords) {
+      // Don't check for new images if we're viewing a specific request or searching
+      if (filters.value.requestId || filters.value.keywords.length > 0) {
         return
       }
 
       try {
-        // Fetch the latest images
-        const response = await imagesApi.getAll(20, 0)
+        // Fetch the latest images with current filters applied
+        const response = await imagesApi.getAll(20, 0, filters.value)
         const newImages = response.data
 
         if (newImages.length === 0) return
@@ -429,6 +486,8 @@ export default {
           // Prepend new images to the list
           images.value = [...trulyNewImages, ...images.value]
           console.log(`Added ${trulyNewImages.length} new image(s) to library`)
+          // Refresh albums since new images may introduce new keywords
+          fetchAlbums()
         }
       } catch (error) {
         console.error('Error checking for new images:', error)
@@ -451,13 +510,8 @@ export default {
     }
 
     const viewRequestImages = (requestId) => {
-      // Set the request filter in localStorage
-      const newFilters = {
-        requestId: requestId,
-        keywords: null
-      }
-      localStorage.setItem('libraryFilters', JSON.stringify(newFilters))
-      filters.value = newFilters
+      filters.value.requestId = requestId
+      filters.value.keywords = []
 
       // Don't close the panel - keep it open for user convenience
 
@@ -468,7 +522,16 @@ export default {
     }
 
     const showDeleteModal = (requestId) => {
-      requestToDelete.value = requestId
+      const request = requests.value.find(r => r.uuid === requestId)
+
+      // For failed requests, delete immediately without confirmation
+      if (request.status === 'failed') {
+        requestToDelete.value = request
+        confirmDelete('prune')
+        return
+      }
+
+      requestToDelete.value = request
       deleteModalVisible.value = true
     }
 
@@ -476,8 +539,8 @@ export default {
       if (!requestToDelete.value) return
 
       try {
-        await requestsApi.delete(requestToDelete.value, imageAction)
-        requests.value = requests.value.filter(r => r.uuid !== requestToDelete.value)
+        await requestsApi.delete(requestToDelete.value.uuid, imageAction)
+        requests.value = requests.value.filter(r => r.uuid !== requestToDelete.value.uuid)
         deleteModalVisible.value = false
         requestToDelete.value = null
 
@@ -489,6 +552,95 @@ export default {
         console.error('Error deleting request:', error)
         alert('Failed to delete request. Please try again.')
       }
+    }
+
+    // Albums panel functions
+    const toggleAlbumsPanel = () => {
+      isAlbumsPanelOpen.value = !isAlbumsPanelOpen.value
+    }
+
+    const fetchAlbums = async () => {
+      try {
+        const response = await albumsApi.getAll(filters.value)
+        albums.value = response.data
+      } catch (error) {
+        console.error('Error fetching albums:', error)
+      }
+    }
+
+    const updateFilterUrl = () => {
+      // Build the path based on current filters
+      let path = '/'
+      if (filters.value.showFavoritesOnly) {
+        path = '/favorites'
+      } else if (filters.value.showHidden) {
+        path = '/hidden'
+      }
+
+      // Build query params
+      const query = {}
+      if (filters.value.keywords.length > 0) {
+        query.q = filters.value.keywords.join(',')
+      }
+
+      // Update URL without triggering navigation
+      router.replace({ path, query })
+    }
+
+    const loadFiltersFromUrl = () => {
+      // Load filters from route
+      if (route.path === '/favorites') {
+        filters.value.showFavoritesOnly = true
+        filters.value.showHidden = false
+      } else if (route.path === '/hidden') {
+        filters.value.showFavoritesOnly = false
+        filters.value.showHidden = true
+      } else {
+        filters.value.showFavoritesOnly = false
+        filters.value.showHidden = false
+      }
+
+      // Load keywords from query params
+      if (route.query.q) {
+        filters.value.keywords = route.query.q.split(',').filter(k => k.trim().length > 0)
+      } else {
+        filters.value.keywords = []
+      }
+    }
+
+    const selectAlbum = (album) => {
+      // Update filters based on album selection
+      filters.value.requestId = null
+
+      if (album.id === 'all') {
+        filters.value.showFavoritesOnly = false
+        filters.value.showHidden = false
+        filters.value.keywords = []
+      } else if (album.id === 'favorites') {
+        filters.value.showFavoritesOnly = true
+        filters.value.showHidden = false
+        filters.value.keywords = []
+      } else if (album.id === 'hidden') {
+        filters.value.showFavoritesOnly = false
+        filters.value.showHidden = true
+        filters.value.keywords = []
+      } else if (album.id.startsWith('keyword:')) {
+        // Extract keyword from ID and add to array if not present
+        const keyword = album.id.replace('keyword:', '')
+        if (!filters.value.keywords.includes(keyword)) {
+          filters.value.keywords.push(keyword)
+        }
+        // Keep current favorite/hidden filters intact for keyword searches
+      }
+
+      // Close the albums panel
+      isAlbumsPanelOpen.value = false
+
+      // Refresh images with new filters
+      offset.value = 0
+      hasMore.value = true
+      fetchImages()
+      updateFilterUrl()
     }
 
     // Listen for filter changes from localStorage (e.g., from other tabs or RequestCard)
@@ -511,6 +663,14 @@ export default {
         }
       })
     }
+
+    // Watch for filter changes to refresh keyword albums
+    watch(
+      () => ({ showFavoritesOnly: filters.value.showFavoritesOnly, showHidden: filters.value.showHidden }),
+      () => {
+        fetchAlbums()
+      }
+    )
 
     // Computed property for request status dot color
     const requestStatusClass = computed(() => {
@@ -559,14 +719,26 @@ export default {
       }
     })
 
+    // Watch for route changes to update filters
+    watch(() => route.path + route.query.q, () => {
+      loadFiltersFromUrl()
+      offset.value = 0
+      hasMore.value = true
+      fetchImages()
+      fetchAlbums()
+    })
+
     onMounted(async () => {
-      loadFilters()
+      loadFiltersFromUrl()
       await fetchImages()
       loadImageFromUrl()
 
       // Fetch requests and queue status
       fetchRequests()
       fetchQueueStatus()
+
+      // Fetch albums
+      fetchAlbums()
 
       // Poll for updates every 2 seconds
       pollInterval = setInterval(() => {
@@ -600,6 +772,7 @@ export default {
       loading,
       selectedImage,
       currentImageIndex,
+      galleryTitle,
       gridContainer,
       filters,
       searchQuery,
@@ -610,6 +783,7 @@ export default {
       navigateImage,
       deleteImage,
       handleLoadSettings,
+      handleImageUpdate,
       applySearch,
       clearFilter,
       clearAllFilters,
@@ -624,7 +798,13 @@ export default {
       viewRequestImages,
       showDeleteModal,
       confirmDelete,
-      deleteModalVisible
+      deleteModalVisible,
+      requestToDelete,
+      // Albums panel
+      isAlbumsPanelOpen,
+      toggleAlbumsPanel,
+      albums,
+      selectAlbum
     }
   }
 }
@@ -666,6 +846,27 @@ export default {
   font-weight: 600;
   white-space: nowrap;
   margin: 0;
+}
+
+.btn-albums-toggle {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid #333;
+  color: #999;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-albums-toggle:hover {
+  background: #1a1a1a;
+  border-color: #666;
+  color: #fff;
 }
 
 
@@ -810,6 +1011,23 @@ export default {
 
 .image-item:hover img {
   transform: scale(1.05);
+}
+
+.favorite-badge {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: rgba(0, 0, 0, 0.8);
+  color: #FFD60A;
+  font-size: 1.5rem;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  z-index: 2;
+  pointer-events: none;
 }
 
 .image-overlay {

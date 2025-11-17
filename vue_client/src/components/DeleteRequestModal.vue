@@ -2,38 +2,84 @@
   <div class="modal-overlay" @click.self="$emit('close')">
     <div class="modal-content">
       <div class="modal-header">
-        <h2>Delete Request</h2>
+        <h2>{{ isOngoingRequest ? 'Cancel Request' : 'Delete Request' }}</h2>
         <button class="btn-close" @click="$emit('close')">×</button>
       </div>
 
       <div class="modal-body">
-        <p>What would you like to do with the images from this request?</p>
+        <!-- Simple confirmation for ongoing requests -->
+        <template v-if="isOngoingRequest">
+          <p>Cancel this ongoing request?</p>
 
-        <div class="option-buttons">
-          <button @click="$emit('delete', 'prune')" class="btn btn-prune">
-            <div class="btn-title">Prune Images</div>
-            <div class="btn-description">Delete non-favorited images</div>
-          </button>
+          <div class="option-buttons">
+            <button @click="$emit('delete', 'cancel')" class="btn btn-confirm">
+              <div class="btn-title">Yes, Cancel Request</div>
+              <div class="btn-description">Stop processing and remove this request</div>
+            </button>
 
-          <button @click="$emit('delete', 'keep')" class="btn btn-keep">
-            <div class="btn-title">Keep All Images</div>
-            <div class="btn-description">Preserve all images from this request</div>
-          </button>
+            <button @click="$emit('close')" class="btn btn-cancel">
+              <div class="btn-title">No, Keep Request</div>
+              <div class="btn-description">Don't cancel this request</div>
+            </button>
+          </div>
+        </template>
 
-          <button @click="$emit('close')" class="btn btn-cancel">
-            <div class="btn-title">Cancel</div>
-            <div class="btn-description">Don't delete this request</div>
-          </button>
-        </div>
+        <!-- Detailed options for completed requests -->
+        <template v-else>
+          <p>What would you like to do with the images from this request?</p>
+
+          <div class="option-buttons">
+            <button @click="$emit('delete', 'prune')" class="btn btn-prune">
+              <div class="btn-title">Prune Images</div>
+              <div class="btn-description">Delete non-favorited/hidden images</div>
+            </button>
+
+            <button @click="$emit('delete', 'hide')" class="btn btn-hide">
+              <div class="btn-title">Keep & Hide All Images</div>
+              <div class="btn-description">Mark all images as hidden and preserve them</div>
+            </button>
+
+            <button @click="$emit('delete', 'keep')" class="btn btn-keep">
+              <div class="btn-title">Keep All Images</div>
+              <div class="btn-description">Preserve all images from this request</div>
+            </button>
+
+            <button @click="$emit('close')" class="btn btn-cancel">
+              <div class="btn-title">Cancel</div>
+              <div class="btn-description">Don't delete this request</div>
+            </button>
+          </div>
+        </template>
       </div>
     </div>
   </div>
 </template>
 
 <script>
+import { computed } from 'vue'
+
 export default {
   name: 'DeleteRequestModal',
-  emits: ['close', 'delete']
+  props: {
+    request: {
+      type: Object,
+      default: () => null
+    }
+  },
+  emits: ['close', 'delete'],
+  setup(props) {
+    const isOngoingRequest = computed(() => {
+      if (!props.request) {
+        return false
+      }
+      const ongoingStatuses = ['pending', 'submitting', 'processing', 'downloading']
+      return ongoingStatuses.includes(props.request.status)
+    })
+
+    return {
+      isOngoingRequest
+    }
+  }
 }
 </script>
 
@@ -139,6 +185,14 @@ export default {
   color: #ff6b6b;
 }
 
+.btn-hide:hover {
+  border-color: #FFD60A;
+}
+
+.btn-hide:hover .btn-title {
+  color: #FFD60A;
+}
+
 .btn-keep:hover {
   border-color: #007AFF;
 }
@@ -149,5 +203,13 @@ export default {
 
 .btn-cancel:hover {
   border-color: #666;
+}
+
+.btn-confirm:hover {
+  border-color: #ff6b6b;
+}
+
+.btn-confirm:hover .btn-title {
+  color: #ff6b6b;
 }
 </style>
