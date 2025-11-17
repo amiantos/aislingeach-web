@@ -540,7 +540,7 @@ export default {
     // Watch for panel opening to scroll to bottom on first open
     watch(isPanelOpen, (isOpen) => {
       if (isOpen && !hasOpenedPanel.value && panelContent.value) {
-        // Use nextTick to ensure DOM is updated
+        // Wait for the panel transition to complete (300ms) before scrolling
         setTimeout(() => {
           if (panelContent.value) {
             const panelElement = panelContent.value.parentElement
@@ -548,7 +548,7 @@ export default {
               panelElement.scrollTop = panelElement.scrollHeight
             }
           }
-        }, 100)
+        }, 350)
         hasOpenedPanel.value = true
       }
     })
