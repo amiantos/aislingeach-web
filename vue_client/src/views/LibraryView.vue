@@ -331,10 +331,6 @@ export default {
 
     const toggleFavoritesFilter = () => {
       filters.value.showFavoritesOnly = !filters.value.showFavoritesOnly
-      // If enabling favorites, disable hidden
-      if (filters.value.showFavoritesOnly) {
-        filters.value.showHidden = false
-      }
       // Refetch images with new filter
       offset.value = 0
       hasMore.value = true
@@ -343,10 +339,6 @@ export default {
 
     const toggleHiddenFilter = () => {
       filters.value.showHidden = !filters.value.showHidden
-      // If enabling hidden, disable favorites
-      if (filters.value.showHidden) {
-        filters.value.showFavoritesOnly = false
-      }
       // Refetch images with new filter
       offset.value = 0
       hasMore.value = true
