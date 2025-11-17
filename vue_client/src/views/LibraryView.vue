@@ -449,14 +449,14 @@ export default {
     }
 
     const checkNewImages = async () => {
-      // Don't check for new images if we're filtering (only check on main library view)
+      // Don't check for new images if we're viewing a specific request or searching
       if (filters.value.requestId || filters.value.keywords) {
         return
       }
 
       try {
-        // Fetch the latest images
-        const response = await imagesApi.getAll(20, 0)
+        // Fetch the latest images with current filters applied
+        const response = await imagesApi.getAll(20, 0, filters.value)
         const newImages = response.data
 
         if (newImages.length === 0) return
