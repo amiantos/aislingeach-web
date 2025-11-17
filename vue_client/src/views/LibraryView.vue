@@ -22,6 +22,7 @@
 
     <DeleteRequestModal
       v-if="deleteModalVisible"
+      :request="requestToDelete"
       @close="deleteModalVisible = false"
       @delete="confirmDelete"
     />
@@ -507,7 +508,8 @@ export default {
     }
 
     const showDeleteModal = (requestId) => {
-      requestToDelete.value = requestId
+      const request = requests.value.find(r => r.uuid === requestId)
+      requestToDelete.value = request
       deleteModalVisible.value = true
     }
 
@@ -515,8 +517,8 @@ export default {
       if (!requestToDelete.value) return
 
       try {
-        await requestsApi.delete(requestToDelete.value, imageAction)
-        requests.value = requests.value.filter(r => r.uuid !== requestToDelete.value)
+        await requestsApi.delete(requestToDelete.value.uuid, imageAction)
+        requests.value = requests.value.filter(r => r.uuid !== requestToDelete.value.uuid)
         deleteModalVisible.value = false
         requestToDelete.value = null
 
