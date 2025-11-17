@@ -59,6 +59,7 @@ export default {
     const showPinSetupModal = ref(false)
     const showPinEntryModal = ref(false)
     const settings = ref({})
+    const settingsLoaded = ref(false)
     const hiddenAuthState = ref({
       isAuthenticated: false,
       lastAuthTime: null
@@ -81,8 +82,10 @@ export default {
       try {
         const data = await settingsApi.get()
         settings.value = data
+        settingsLoaded.value = true
       } catch (error) {
         console.error('Error loading settings:', error)
+        settingsLoaded.value = true // Mark as loaded even on error to prevent blocking
       }
     }
 
@@ -121,13 +124,23 @@ export default {
     }
 
     const checkHiddenAuth = () => {
-      // If no PIN protection, always allow access
-      if (!settings.value.hasPinProtection) {
-        return true
+      // Wait for settings to load first
+      if (!settingsLoaded.value) {
+        return false
+      }
+
+      // If PIN not configured yet (null), need to set it up
+      if (settings.value.hidden_pin_enabled === null) {
+        return false
       }
 
       // If explicitly declined PIN, allow access
       if (settings.value.hidden_pin_enabled === 0) {
+        return true
+      }
+
+      // If no PIN hash (shouldn't happen if enabled=1, but check anyway)
+      if (!settings.value.hasPinProtection) {
         return true
       }
 
@@ -143,8 +156,15 @@ export default {
     }
 
     const requestHiddenAccess = (callback) => {
+      // Wait for settings to load
+      if (!settingsLoaded.value) {
+        // Settings not loaded yet, wait a bit and retry
+        setTimeout(() => requestHiddenAccess(callback), 100)
+        return
+      }
+
       // Check if PIN is configured
-      if (settings.value.hidden_pin_enabled === null) {
+      if (settings.value.hidden_pin_enabled === null || settings.value.hidden_pin_enabled === undefined) {
         // Not configured - show setup modal
         showPinSetupModal.value = true
         pendingHiddenAccess.value = callback
