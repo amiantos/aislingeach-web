@@ -39,9 +39,10 @@
           </button>
           <button
             @click="$emit('delete', request.uuid)"
-            class="btn btn-delete"
+            class="btn btn-icon btn-delete"
+            title="Delete request"
           >
-            <i class="fa-solid fa-trash"></i> Delete
+            <i class="fa-solid fa-trash"></i>
           </button>
         </div>
       </div>
@@ -294,6 +295,15 @@ export default {
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
+}
+
+.btn-icon {
+  padding: 0.6rem;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-primary {

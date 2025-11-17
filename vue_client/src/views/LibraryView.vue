@@ -53,14 +53,14 @@
                 :class="['btn-filter', { active: filters.showFavoritesOnly }]"
                 title="Show favorites only"
               >
-                <i class="fa-star" :class="filters.showFavoritesOnly ? 'fa-solid' : 'fa-regular'"></i> Favorites
+                <i class="fa-star" :class="filters.showFavoritesOnly ? 'fa-solid' : 'fa-regular'"></i>
               </button>
               <button
                 @click="toggleHiddenFilter"
                 :class="['btn-filter', { active: filters.showHidden }]"
                 title="Show hidden images"
               >
-                <i :class="filters.showHidden ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash'"></i> Hidden
+                <i :class="filters.showHidden ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash'"></i>
               </button>
             </div>
 
@@ -766,16 +766,19 @@ export default {
 }
 
 .btn-filter {
-  padding: 0.5rem 1rem;
+  padding: 0.5rem;
+  width: 40px;
+  height: 40px;
   background: transparent;
   border: 1px solid #333;
   border-radius: 6px;
   color: #999;
-  font-size: 0.9rem;
-  font-weight: 500;
+  font-size: 1.1rem;
   cursor: pointer;
-  white-space: nowrap;
   transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-filter:hover {
