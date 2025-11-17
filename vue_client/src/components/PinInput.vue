@@ -1,5 +1,5 @@
 <template>
-  <div class="pin-input-container">
+  <div class="pin-input-container" @click="focus">
     <div class="pin-dots">
       <div
         v-for="(digit, index) in 4"
@@ -12,7 +12,7 @@
     </div>
     <input
       ref="hiddenInput"
-      type="text"
+      type="tel"
       inputmode="numeric"
       pattern="[0-9]*"
       maxlength="4"
@@ -130,10 +130,18 @@ defineExpose({ focus, clear });
 
 .pin-hidden-input {
   position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   opacity: 0;
-  pointer-events: none;
-  width: 0;
-  height: 0;
+  font-size: 16px; /* Prevents zoom on mobile */
+  border: none;
+  outline: none;
+  background: transparent;
+  color: transparent;
+  caret-color: transparent;
+  cursor: pointer;
 }
 
 /* Focus on container to focus hidden input */
