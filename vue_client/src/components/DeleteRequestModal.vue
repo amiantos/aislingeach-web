@@ -12,7 +12,12 @@
         <div class="option-buttons">
           <button @click="$emit('delete', 'prune')" class="btn btn-prune">
             <div class="btn-title">Prune Images</div>
-            <div class="btn-description">Delete non-favorited images</div>
+            <div class="btn-description">Delete non-favorited/hidden images</div>
+          </button>
+
+          <button @click="$emit('delete', 'hide')" class="btn btn-hide">
+            <div class="btn-title">Keep & Hide All Images</div>
+            <div class="btn-description">Mark all images as hidden and preserve them</div>
           </button>
 
           <button @click="$emit('delete', 'keep')" class="btn btn-keep">
@@ -137,6 +142,14 @@ export default {
 
 .btn-prune:hover .btn-title {
   color: #ff6b6b;
+}
+
+.btn-hide:hover {
+  border-color: #FFD60A;
+}
+
+.btn-hide:hover .btn-title {
+  color: #FFD60A;
 }
 
 .btn-keep:hover {

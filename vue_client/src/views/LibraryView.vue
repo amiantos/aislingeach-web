@@ -46,6 +46,24 @@
               </div>
             </div>
 
+            <!-- Filter Buttons -->
+            <div class="filter-buttons">
+              <button
+                @click="toggleFavoritesFilter"
+                :class="['btn-filter', { active: filters.showFavoritesOnly }]"
+                title="Show favorites only"
+              >
+                ★ Favorites
+              </button>
+              <button
+                @click="toggleHiddenFilter"
+                :class="['btn-filter', { active: filters.showHidden }]"
+                title="Show hidden images"
+              >
+                👁 Hidden
+              </button>
+            </div>
+
             <!-- Search Bar -->
             <div class="search-bar">
               <input
@@ -70,18 +88,23 @@
       </div>
     </div>
 
-    <div v-if="loading && images.length === 0" class="loading">
+    <div v-if="loading && filteredImages.length === 0" class="loading">
       Loading images...
     </div>
 
-    <div v-else-if="images.length === 0" class="empty-state">
+    <div v-else-if="filteredImages.length === 0 && images.length === 0" class="empty-state">
       <p>No images yet</p>
       <p class="hint">Generate some images to see them here</p>
     </div>
 
+    <div v-else-if="filteredImages.length === 0" class="empty-state">
+      <p>No images match the current filters</p>
+      <p class="hint">Try adjusting your filters</p>
+    </div>
+
     <div v-else class="image-grid" ref="gridContainer">
       <div
-        v-for="image in images"
+        v-for="image in filteredImages"
         :key="image.uuid"
         class="image-item"
         @click="viewImage(image)"
@@ -91,6 +114,9 @@
           :alt="image.prompt_simple"
           loading="lazy"
         />
+        <div v-if="image.is_favorite" class="favorite-badge" title="Favorited">
+          ★
+        </div>
         <div class="image-overlay">
           <div class="image-info">
             <span class="date">{{ formatDate(image.date_created) }}</span>
@@ -106,12 +132,13 @@
     <ImageModal
       v-if="selectedImage"
       :image="selectedImage"
-      :images="images"
+      :images="filteredImages"
       :currentIndex="currentImageIndex"
       @close="closeImage"
       @delete="deleteImage"
       @navigate="navigateImage"
       @load-settings="handleLoadSettings"
+      @update="handleImageUpdate"
     />
 
     <!-- Floating Action Button (Settings) -->
@@ -157,7 +184,9 @@ export default {
     const searchQuery = ref('')
     const filters = ref({
       requestId: null,
-      keywords: null
+      keywords: null,
+      showFavoritesOnly: false,
+      showHidden: false
     })
 
     // Requests panel state
@@ -209,7 +238,28 @@ export default {
 
     const currentImageIndex = computed(() => {
       if (!selectedImage.value) return -1
-      return images.value.findIndex(img => img.uuid === selectedImage.value.uuid)
+      return filteredImages.value.findIndex(img => img.uuid === selectedImage.value.uuid)
+    })
+
+    const filteredImages = computed(() => {
+      return images.value.filter(image => {
+        // By default, hide hidden images unless showHidden is enabled
+        if (!filters.value.showHidden && image.is_hidden) {
+          return false
+        }
+
+        // If showHidden is enabled, only show hidden images
+        if (filters.value.showHidden && !image.is_hidden) {
+          return false
+        }
+
+        // If showFavoritesOnly is enabled, only show favorites
+        if (filters.value.showFavoritesOnly && !image.is_favorite) {
+          return false
+        }
+
+        return true
+      })
     })
 
     const fetchImages = async (append = false) => {
@@ -307,11 +357,23 @@ export default {
     const clearAllFilters = () => {
       filters.value.requestId = null
       filters.value.keywords = null
+      filters.value.showFavoritesOnly = false
+      filters.value.showHidden = false
       searchQuery.value = ''
       saveFilters()
       offset.value = 0
       hasMore.value = true
       fetchImages()
+    }
+
+    const toggleFavoritesFilter = () => {
+      filters.value.showFavoritesOnly = !filters.value.showFavoritesOnly
+      saveFilters()
+    }
+
+    const toggleHiddenFilter = () => {
+      filters.value.showHidden = !filters.value.showHidden
+      saveFilters()
     }
 
     const navigateImage = (direction) => {
@@ -354,6 +416,14 @@ export default {
     const handleLoadSettings = (includeSeed) => {
       if (selectedImage.value && loadSettingsFromImage) {
         loadSettingsFromImage(selectedImage.value, includeSeed)
+      }
+    }
+
+    const handleImageUpdate = (updates) => {
+      // Update the image in the images array
+      const imageIndex = images.value.findIndex(img => img.uuid === updates.uuid)
+      if (imageIndex !== -1) {
+        images.value[imageIndex] = { ...images.value[imageIndex], ...updates }
       }
     }
 
@@ -597,6 +667,7 @@ export default {
 
     return {
       images,
+      filteredImages,
       loading,
       selectedImage,
       currentImageIndex,
@@ -610,9 +681,12 @@ export default {
       navigateImage,
       deleteImage,
       handleLoadSettings,
+      handleImageUpdate,
       applySearch,
       clearFilter,
       clearAllFilters,
+      toggleFavoritesFilter,
+      toggleHiddenFilter,
       openSettings,
       openNewRequest,
       // Requests panel
@@ -718,6 +792,36 @@ export default {
   color: #ff4a4a;
 }
 
+.filter-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-filter {
+  padding: 0.5rem 1rem;
+  background: transparent;
+  border: 1px solid #333;
+  border-radius: 6px;
+  color: #999;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.btn-filter:hover {
+  background: #1a1a1a;
+  border-color: #666;
+  color: #fff;
+}
+
+.btn-filter.active {
+  background: #007AFF;
+  border-color: #007AFF;
+  color: #fff;
+}
+
 .search-bar {
   display: flex;
   gap: 0.5rem;
@@ -810,6 +914,23 @@ export default {
 
 .image-item:hover img {
   transform: scale(1.05);
+}
+
+.favorite-badge {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: rgba(0, 0, 0, 0.8);
+  color: #FFD60A;
+  font-size: 1.5rem;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  z-index: 2;
+  pointer-events: none;
 }
 
 .image-overlay {
