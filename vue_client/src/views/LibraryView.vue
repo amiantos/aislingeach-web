@@ -897,11 +897,10 @@ export default {
   border-top: none;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
   gap: 0.75rem;
   padding: 0.75rem 1.5rem;
-  transform-origin: top center;
 }
 
 .panel-tab:hover .tab-content {
@@ -909,9 +908,9 @@ export default {
 }
 
 @keyframes bounce {
-  0% { transform: scaleY(1); }
-  50% { transform: scaleY(1.1); }
-  100% { transform: scaleY(1); }
+  0% { padding-top: 0.75rem; }
+  50% { padding-top: 1.25rem; }
+  100% { padding-top: 0.75rem; }
 }
 
 .status-dot {
