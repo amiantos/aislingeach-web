@@ -88,6 +88,7 @@ function initDatabase() {
       favorite_models TEXT,
       favorite_styles TEXT,
       last_used_settings TEXT,
+      worker_preferences TEXT,
       date_modified INTEGER
     )
   `);

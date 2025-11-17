@@ -30,9 +30,6 @@
       <div class="header-content">
         <div class="header-left">
           <h2>Aislingeach</h2>
-          <button @click="openSettings" class="btn-settings-icon" title="Settings">
-            ⚙
-          </button>
         </div>
 
         <div class="header-controls">
@@ -122,8 +119,13 @@
       @load-settings="handleLoadSettings"
     />
 
-    <!-- Floating Action Button -->
-    <button @click="openNewRequest" class="fab" title="New Request">
+    <!-- Floating Action Button (Settings) -->
+    <button @click="openSettings" class="fab fab-settings" title="Settings">
+      ⚙
+    </button>
+
+    <!-- Floating Action Button (New Request) -->
+    <button @click="openNewRequest" class="fab fab-new" title="New Request">
       +
     </button>
   </div>
@@ -642,25 +644,6 @@ export default {
   margin: 0;
 }
 
-.btn-settings-icon {
-  background: transparent;
-  color: #999;
-  border: 1px solid #333;
-  padding: 0.5rem 0.6rem;
-  border-radius: 8px;
-  font-size: 1.1rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
-
-.btn-settings-icon:hover {
-  color: #fff;
-  background: #2a2a2a;
-  border-color: #444;
-}
 
 .header-controls {
   display: flex;
@@ -829,11 +812,10 @@ export default {
   font-weight: 500;
 }
 
-/* Floating Action Button */
+/* Floating Action Buttons */
 .fab {
   position: fixed;
   bottom: 2rem;
-  right: 2rem;
   width: 64px;
   height: 64px;
   border-radius: 50%;
@@ -852,10 +834,23 @@ export default {
   justify-content: center;
 }
 
+.fab-new {
+  right: 2rem;
+}
+
+.fab-settings {
+  left: 2rem;
+  background: #555;
+}
+
 .fab:hover {
   background: #0051D5;
   transform: scale(1.05);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+}
+
+.fab-settings:hover {
+  background: #777;
 }
 
 .fab:active {
