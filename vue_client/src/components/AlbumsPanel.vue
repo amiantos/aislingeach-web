@@ -13,8 +13,9 @@
       </div>
 
       <div v-else class="albums-list">
+        <!-- System Albums -->
         <div
-          v-for="album in albums"
+          v-for="album in systemAlbums"
           :key="album.id"
           class="album-card"
           @click="$emit('select', album)"
@@ -36,12 +37,39 @@
             <div class="album-count">{{ album.count }}</div>
           </div>
         </div>
+
+        <!-- Divider -->
+        <div v-if="keywordAlbums.length > 0" class="albums-divider"></div>
+
+        <!-- Keyword Albums -->
+        <div
+          v-for="album in keywordAlbums"
+          :key="album.id"
+          class="album-card"
+          @click="$emit('select', album)"
+        >
+          <div class="album-thumbnail">
+            <img
+              v-if="album.thumbnail"
+              :src="getThumbnailUrl(album.thumbnail)"
+              :alt="album.name"
+            />
+            <div v-else class="album-icon">
+              <i class="fa-solid fa-hashtag"></i>
+            </div>
+          </div>
+          <div class="album-info">
+            <div class="album-name">{{ album.name }}</div>
+            <div class="album-count">{{ album.count }}</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script>
+import { computed } from 'vue'
 import { imagesApi } from '../api/client.js'
 
 export default {
@@ -57,13 +85,23 @@ export default {
     }
   },
   emits: ['close', 'select'],
-  setup() {
+  setup(props) {
     const getThumbnailUrl = (imageId) => {
       return imagesApi.getThumbnailUrl(imageId)
     }
 
+    const systemAlbums = computed(() => {
+      return props.albums.filter(album => album.type === 'system')
+    })
+
+    const keywordAlbums = computed(() => {
+      return props.albums.filter(album => album.type === 'keyword')
+    })
+
     return {
-      getThumbnailUrl
+      getThumbnailUrl,
+      systemAlbums,
+      keywordAlbums
     }
   }
 }
@@ -141,6 +179,12 @@ export default {
   gap: 0.75rem;
 }
 
+.albums-divider {
+  height: 1px;
+  background: #333;
+  margin: 0.5rem 0;
+}
+
 .album-card {
   background: #0f0f0f;
   border: 1px solid #333;
@@ -193,6 +237,10 @@ export default {
 
 .album-icon i.fa-eye-slash {
   color: #999;
+}
+
+.album-icon i.fa-hashtag {
+  color: #00D4FF;
 }
 
 .album-info {

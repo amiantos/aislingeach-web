@@ -539,7 +539,7 @@ export default {
 
     const fetchAlbums = async () => {
       try {
-        const response = await albumsApi.getAll()
+        const response = await albumsApi.getAll(filters.value)
         albums.value = response.data
       } catch (error) {
         console.error('Error fetching albums:', error)
@@ -549,17 +549,24 @@ export default {
     const selectAlbum = (album) => {
       // Update filters based on album selection
       filters.value.requestId = null
-      filters.value.keywords = null
 
       if (album.id === 'all') {
         filters.value.showFavoritesOnly = false
         filters.value.showHidden = false
+        filters.value.keywords = null
       } else if (album.id === 'favorites') {
         filters.value.showFavoritesOnly = true
         filters.value.showHidden = false
+        filters.value.keywords = null
       } else if (album.id === 'hidden') {
         filters.value.showFavoritesOnly = false
         filters.value.showHidden = true
+        filters.value.keywords = null
+      } else if (album.id.startsWith('keyword:')) {
+        // Extract keyword from ID
+        const keyword = album.id.replace('keyword:', '')
+        filters.value.keywords = keyword
+        // Keep current favorite/hidden filters intact for keyword searches
       }
 
       // Close the albums panel
@@ -591,6 +598,14 @@ export default {
         }
       })
     }
+
+    // Watch for filter changes to refresh keyword albums
+    watch(
+      () => ({ showFavoritesOnly: filters.value.showFavoritesOnly, showHidden: filters.value.showHidden }),
+      () => {
+        fetchAlbums()
+      }
+    )
 
     // Computed property for request status dot color
     const requestStatusClass = computed(() => {

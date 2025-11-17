@@ -113,8 +113,19 @@ export const stylesApi = {
 }
 
 export const albumsApi = {
-  getAll() {
-    return apiClient.get('/albums')
+  getAll(filters = {}) {
+    let url = '/albums'
+    const params = []
+    if (filters.showFavoritesOnly) {
+      params.push('favorites=true')
+    }
+    if (filters.showHidden) {
+      params.push('hidden=true')
+    }
+    if (params.length > 0) {
+      url += '?' + params.join('&')
+    }
+    return apiClient.get(url)
   }
 }
 
