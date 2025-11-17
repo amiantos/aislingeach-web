@@ -53,14 +53,14 @@
                 :class="['btn-filter', { active: filters.showFavoritesOnly }]"
                 title="Show favorites only"
               >
-                ★ Favorites
+                <i class="fa-star" :class="filters.showFavoritesOnly ? 'fa-solid' : 'fa-regular'"></i> Favorites
               </button>
               <button
                 @click="toggleHiddenFilter"
                 :class="['btn-filter', { active: filters.showHidden }]"
                 title="Show hidden images"
               >
-                👁 Hidden
+                <i :class="filters.showHidden ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash'"></i> Hidden
               </button>
             </div>
 
@@ -110,7 +110,7 @@
           loading="lazy"
         />
         <div v-if="image.is_favorite" class="favorite-badge" title="Favorited">
-          ★
+          <i class="fa-solid fa-star"></i>
         </div>
         <div class="image-overlay">
           <div class="image-info">
@@ -138,12 +138,12 @@
 
     <!-- Floating Action Button (Settings) -->
     <button @click="openSettings" class="fab fab-settings" title="Settings">
-      ⚙
+      <i class="fa-solid fa-gear"></i>
     </button>
 
     <!-- Floating Action Button (New Request) -->
     <button @click="openNewRequest" class="fab fab-new" title="New Request">
-      +
+      <i class="fa-solid fa-plus"></i>
     </button>
   </div>
 </template>

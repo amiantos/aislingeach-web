@@ -48,7 +48,7 @@
                 @click.stop="toggleFavorite(model.name)"
                 title="Remove from favorites"
               >
-                ★
+                <i class="fa-solid fa-star"></i>
               </button>
             </div>
             <div class="model-info">
@@ -75,7 +75,7 @@
                 @click.stop="toggleFavorite(model.name)"
                 title="Add to favorites"
               >
-                ☆
+                <i class="fa-regular fa-star"></i>
               </button>
             </div>
             <div class="model-info">

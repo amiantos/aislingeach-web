@@ -41,7 +41,7 @@
             @click="$emit('delete', request.uuid)"
             class="btn btn-delete"
           >
-            Delete
+            <i class="fa-solid fa-trash"></i> Delete
           </button>
         </div>
       </div>

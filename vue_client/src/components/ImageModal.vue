@@ -47,14 +47,14 @@
             :class="['btn', 'btn-favorite', { 'active': isFavorite }]"
             :title="isFavorite ? 'Remove from favorites' : 'Add to favorites'"
           >
-            {{ isFavorite ? '★' : '☆' }} Favorite
+            <i class="fa-star" :class="isFavorite ? 'fa-solid' : 'fa-regular'"></i> Favorite
           </button>
           <button
             @click="toggleHidden"
             :class="['btn', 'btn-hidden', { 'active': isHidden }]"
             :title="isHidden ? 'Unhide image' : 'Hide image'"
           >
-            {{ isHidden ? '👁' : '🚫' }} {{ isHidden ? 'Hidden' : 'Hide' }}
+            <i :class="isHidden ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash'"></i> {{ isHidden ? 'Hidden' : 'Hide' }}
           </button>
           <button
             v-if="hasSettings"
@@ -62,7 +62,7 @@
             class="btn btn-load-settings"
             title="Load generation settings from this image"
           >
-            Load Settings
+            <i class="fa-solid fa-sliders"></i> Load Settings
           </button>
           <button
             v-if="hasSettings"
@@ -70,13 +70,13 @@
             class="btn btn-load-settings-seed"
             title="Load generation settings including seed from this image"
           >
-            Load Settings + Seed
+            <i class="fa-solid fa-sliders"></i> Load Settings + Seed
           </button>
           <a :href="imageUrl" :download="`aislingeach-${image.uuid}.png`" class="btn btn-download">
-            Download
+            <i class="fa-solid fa-download"></i> Download
           </a>
           <button @click="$emit('delete', image.uuid)" class="btn btn-delete">
-            Delete
+            <i class="fa-solid fa-trash"></i> Delete
           </button>
         </div>
       </div>
