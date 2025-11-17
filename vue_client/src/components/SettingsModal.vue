@@ -134,6 +134,16 @@ export default {
           }
         }
 
+        // Load cached user info for instant display
+        const cachedUserInfo = localStorage.getItem('userInfo')
+        if (cachedUserInfo) {
+          try {
+            userInfo.value = JSON.parse(cachedUserInfo)
+          } catch (error) {
+            console.error('Error parsing cached user info:', error)
+          }
+        }
+
         // Then load from server
         const response = await settingsApi.get()
         settings.value = response.data
@@ -183,6 +193,8 @@ export default {
         userInfoError.value = null
         const response = await settingsApi.getHordeUser()
         userInfo.value = response.data
+        // Cache user info to localStorage for instant loading next time
+        localStorage.setItem('userInfo', JSON.stringify(response.data))
       } catch (error) {
         console.error('Error loading user info:', error)
         userInfoError.value = 'Failed to load account information. Check your API key.'
