@@ -112,4 +112,10 @@ export const stylesApi = {
   }
 }
 
+export const albumsApi = {
+  getAll() {
+    return apiClient.get('/albums')
+  }
+}
+
 export default apiClient

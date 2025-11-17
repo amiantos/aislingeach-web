@@ -1,5 +1,13 @@
 <template>
   <div class="library-view" :class="{ 'panel-open': isPanelOpen }">
+    <!-- Albums Panel -->
+    <AlbumsPanel
+      :albums="albums"
+      :isOpen="isAlbumsPanelOpen"
+      @close="isAlbumsPanelOpen = false"
+      @select="selectAlbum"
+    />
+
     <!-- Requests Panel -->
     <div class="requests-panel" :class="{ open: isPanelOpen }">
       <div class="panel-content">
@@ -30,6 +38,9 @@
     <div class="header">
       <div class="header-content">
         <div class="header-left">
+          <button @click="toggleAlbumsPanel" class="btn-albums-toggle" title="Albums">
+            <i class="fa-solid fa-folder"></i>
+          </button>
           <h2>Aislingeach</h2>
         </div>
 
@@ -152,17 +163,19 @@
 <script>
 import { ref, computed, onMounted, onUnmounted, watch, inject } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { imagesApi, requestsApi } from '../api/client.js'
+import { imagesApi, requestsApi, albumsApi } from '../api/client.js'
 import ImageModal from '../components/ImageModal.vue'
 import RequestCard from '../components/RequestCard.vue'
 import DeleteRequestModal from '../components/DeleteRequestModal.vue'
+import AlbumsPanel from '../components/AlbumsPanel.vue'
 
 export default {
   name: 'LibraryView',
   components: {
     ImageModal,
     RequestCard,
-    DeleteRequestModal
+    DeleteRequestModal,
+    AlbumsPanel
   },
   props: {
     imageId: String // selected image ID from URL
@@ -195,6 +208,10 @@ export default {
     let imagesPollInterval = null
     let finalImageCheckTimeout = null
     const wasActive = ref(false)
+
+    // Albums panel state
+    const isAlbumsPanelOpen = ref(false)
+    const albums = ref([])
 
     // Inject functions from App.vue
     const loadSettingsFromImage = inject('loadSettingsFromImage')
@@ -540,6 +557,42 @@ export default {
       }
     }
 
+    // Albums panel functions
+    const toggleAlbumsPanel = () => {
+      isAlbumsPanelOpen.value = !isAlbumsPanelOpen.value
+    }
+
+    const fetchAlbums = async () => {
+      try {
+        const response = await albumsApi.getAll()
+        albums.value = response.data
+      } catch (error) {
+        console.error('Error fetching albums:', error)
+      }
+    }
+
+    const selectAlbum = (album) => {
+      // Update filters based on album selection
+      filters.value.requestId = null
+      filters.value.keywords = null
+
+      if (album.id === 'favorites') {
+        filters.value.showFavoritesOnly = true
+        filters.value.showHidden = false
+      } else if (album.id === 'hidden') {
+        filters.value.showFavoritesOnly = false
+        filters.value.showHidden = true
+      }
+
+      // Close the albums panel
+      isAlbumsPanelOpen.value = false
+
+      // Refresh images with new filters
+      offset.value = 0
+      hasMore.value = true
+      fetchImages()
+    }
+
     // Listen for filter changes from localStorage (e.g., from other tabs or RequestCard)
     const handleStorageChange = (e) => {
       if (e.key === 'libraryFilters') {
@@ -617,6 +670,9 @@ export default {
       fetchRequests()
       fetchQueueStatus()
 
+      // Fetch albums
+      fetchAlbums()
+
       // Poll for updates every 2 seconds
       pollInterval = setInterval(() => {
         fetchRequests()
@@ -677,7 +733,12 @@ export default {
       showDeleteModal,
       confirmDelete,
       deleteModalVisible,
-      requestToDelete
+      requestToDelete,
+      // Albums panel
+      isAlbumsPanelOpen,
+      toggleAlbumsPanel,
+      albums,
+      selectAlbum
     }
   }
 }
@@ -719,6 +780,27 @@ export default {
   font-weight: 600;
   white-space: nowrap;
   margin: 0;
+}
+
+.btn-albums-toggle {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid #333;
+  color: #999;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-albums-toggle:hover {
+  background: #1a1a1a;
+  border-color: #666;
+  color: #fff;
 }
 
 
