@@ -63,15 +63,21 @@ export default {
   props: {
     request: {
       type: Object,
-      default: null
+      default: () => null
     }
   },
   emits: ['close', 'delete'],
   setup(props) {
     const isOngoingRequest = computed(() => {
-      if (!props.request) return false
+      console.log('DeleteRequestModal - props.request:', props.request)
+      if (!props.request) {
+        console.log('DeleteRequestModal - no request object')
+        return false
+      }
       const ongoingStatuses = ['pending', 'submitting', 'processing', 'downloading']
-      return ongoingStatuses.includes(props.request.status)
+      const isOngoing = ongoingStatuses.includes(props.request.status)
+      console.log('DeleteRequestModal - status:', props.request.status, 'isOngoing:', isOngoing)
+      return isOngoing
     })
 
     return {
