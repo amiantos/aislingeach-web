@@ -224,7 +224,14 @@ export default {
         const saved = localStorage.getItem('libraryFilters')
         if (saved) {
           const parsed = JSON.parse(saved)
-          filters.value = { ...filters.value, ...parsed }
+          // Only restore the boolean filter flags, not requestId/keywords
+          // (those are ephemeral and could reference deleted requests)
+          if (parsed.showFavoritesOnly !== undefined) {
+            filters.value.showFavoritesOnly = parsed.showFavoritesOnly
+          }
+          if (parsed.showHidden !== undefined) {
+            filters.value.showHidden = parsed.showHidden
+          }
         }
       } catch (error) {
         console.error('Error loading filters:', error)
@@ -233,7 +240,12 @@ export default {
 
     // Save filters to localStorage
     const saveFilters = () => {
-      localStorage.setItem('libraryFilters', JSON.stringify(filters.value))
+      // Only persist the boolean filter flags, not requestId/keywords
+      const toSave = {
+        showFavoritesOnly: filters.value.showFavoritesOnly,
+        showHidden: filters.value.showHidden
+      }
+      localStorage.setItem('libraryFilters', JSON.stringify(toSave))
     }
 
     const currentImageIndex = computed(() => {
