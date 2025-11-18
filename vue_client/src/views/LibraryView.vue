@@ -35,6 +35,13 @@
       @delete="confirmDelete"
     />
 
+    <DeleteAllRequestsModal
+      v-if="deleteAllModalVisible"
+      :requests="requests"
+      @close="deleteAllModalVisible = false"
+      @delete="confirmDeleteAll"
+    />
+
     <div class="header">
       <div class="header-content">
         <div class="header-left">
@@ -139,6 +146,16 @@
       @update="handleImageUpdate"
     />
 
+    <!-- Floating Action Button (Delete All Requests) -->
+    <button
+      v-show="isPanelOpen && requests.length > 0"
+      @click="showDeleteAllModal"
+      class="fab fab-delete-all"
+      title="Delete all requests"
+    >
+      <i class="fa-solid fa-trash"></i>
+    </button>
+
     <!-- Floating Action Button (Settings) -->
     <button @click="openSettings" class="fab fab-settings" title="Settings">
       <i class="fa-solid fa-gear"></i>
@@ -158,6 +175,7 @@ import { imagesApi, requestsApi, albumsApi } from '../api/client.js'
 import ImageModal from '../components/ImageModal.vue'
 import RequestCard from '../components/RequestCard.vue'
 import DeleteRequestModal from '../components/DeleteRequestModal.vue'
+import DeleteAllRequestsModal from '../components/DeleteAllRequestsModal.vue'
 import AlbumsPanel from '../components/AlbumsPanel.vue'
 
 export default {
@@ -166,6 +184,7 @@ export default {
     ImageModal,
     RequestCard,
     DeleteRequestModal,
+    DeleteAllRequestsModal,
     AlbumsPanel
   },
   props: {
@@ -195,6 +214,7 @@ export default {
     const requests = ref([])
     const queueStatus = ref(null)
     const deleteModalVisible = ref(false)
+    const deleteAllModalVisible = ref(false)
     const requestToDelete = ref(null)
     let pollInterval = null
     let imagesPollInterval = null
@@ -668,6 +688,26 @@ export default {
       }
     }
 
+    const showDeleteAllModal = () => {
+      deleteAllModalVisible.value = true
+    }
+
+    const confirmDeleteAll = async (imageAction) => {
+      try {
+        await requestsApi.deleteAll(imageAction)
+        requests.value = []
+        deleteAllModalVisible.value = false
+
+        // Refresh the image library to reflect deleted images
+        offset.value = 0
+        hasMore.value = true
+        await fetchImages()
+      } catch (error) {
+        console.error('Error deleting all requests:', error)
+        alert('Failed to delete all requests. Please try again.')
+      }
+    }
+
     // Albums panel functions
     const toggleAlbumsPanel = () => {
       isAlbumsPanelOpen.value = !isAlbumsPanelOpen.value
@@ -957,6 +997,9 @@ export default {
       showDeleteModal,
       confirmDelete,
       deleteModalVisible,
+      deleteAllModalVisible,
+      showDeleteAllModal,
+      confirmDeleteAll,
       requestToDelete,
       // Albums panel
       isAlbumsPanelOpen,
@@ -1283,6 +1326,23 @@ export default {
 
 .fab-new {
   right: 2rem;
+}
+
+.fab-delete-all {
+  right: 2rem;
+  bottom: 8rem;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  color: #999;
+  font-size: 1.25rem;
+  width: 56px;
+  height: 56px;
+}
+
+.fab-delete-all:hover {
+  background: #3a3a3a;
+  border-color: #ff6b6b;
+  color: #ff6b6b;
 }
 
 .fab-settings {
