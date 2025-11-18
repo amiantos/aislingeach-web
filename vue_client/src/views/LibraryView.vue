@@ -10,16 +10,6 @@
 
     <!-- Requests Panel -->
     <div class="requests-panel" :class="{ open: isPanelOpen }">
-      <!-- Delete All Button -->
-      <button
-        v-if="requests.length > 0"
-        @click="showDeleteAllModal"
-        class="btn-delete-all-requests"
-        title="Delete all requests"
-      >
-        <i class="fa-solid fa-trash"></i>
-      </button>
-
       <div class="panel-content">
         <div v-if="requests.length === 0" class="panel-empty-state">
           <p>No requests yet</p>
@@ -27,6 +17,14 @@
         </div>
 
         <div v-else class="requests-grid">
+          <button
+            @click="showDeleteAllModal"
+            class="btn-clear-history"
+          >
+            <i class="fa-solid fa-trash"></i>
+            Clear Request History
+          </button>
+
           <RequestCard
             v-for="request in requests"
             :key="request.uuid"
@@ -1437,36 +1435,31 @@ export default {
   position: relative;
 }
 
-.btn-delete-all-requests {
-  position: absolute;
-  top: 0.75rem;
-  right: 1rem;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
+.btn-clear-history {
+  width: 100%;
+  padding: 1rem;
   background: #2a2a2a;
   border: 1px solid #444;
+  border-radius: 8px;
   color: #999;
-  font-size: 1.1rem;
+  font-size: 1rem;
+  font-weight: 500;
   cursor: pointer;
+  transition: all 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  z-index: 52;
+  gap: 0.5rem;
 }
 
-.btn-delete-all-requests:hover {
+.btn-clear-history:hover {
   background: #3a3a3a;
   border-color: #ff6b6b;
   color: #ff6b6b;
-  transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
-.btn-delete-all-requests:active {
-  transform: scale(0.95);
+.btn-clear-history:active {
+  transform: scale(0.98);
 }
 
 .panel-empty-state {
