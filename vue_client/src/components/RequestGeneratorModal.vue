@@ -469,7 +469,7 @@ export default {
       // Load params
       if (settings.params) {
         const params = settings.params
-        if (params.sampler_name) form.sampler = params.sampler_name
+        form.sampler = params.sampler_name !== undefined ? params.sampler_name : 'k_euler_a'
         if (params.cfg_scale !== undefined) form.cfgScale = params.cfg_scale
         if (params.height !== undefined) form.height = params.height
         if (params.width !== undefined) form.width = params.width
@@ -480,8 +480,8 @@ export default {
         if (params.steps !== undefined) form.steps = params.steps
         if (params.n !== undefined) form.n = params.n
         if (params.tiling !== undefined) form.tiling = params.tiling
-        if (params.loras) form.loras = [...params.loras]
-        if (params.post_processing) form.postProcessing = [...params.post_processing]
+        form.loras = params.loras ? [...params.loras] : []
+        form.postProcessing = params.post_processing ? [...params.post_processing] : []
 
         // Load seed if requested and available
         if (includeSeed && params.seed !== undefined && params.seed !== null && params.seed !== '') {
@@ -494,6 +494,9 @@ export default {
           form.useRandomSeed = true
         }
       }
+
+      // Load root-level settings
+      form.transparent = settings.transparent !== undefined ? settings.transparent : false
 
       // Clear any selected style
       selectedStyleName.value = 'None'
