@@ -82,12 +82,30 @@
           >
             <i class="fa-solid fa-sliders"></i> Load Settings + Seed
           </button>
+          <button
+            v-if="hasSettings"
+            @click="showRequestDetails = true"
+            class="btn btn-view-request"
+            title="View full request JSON"
+          >
+            <i class="fa-solid fa-code"></i> View Request
+          </button>
           <a :href="imageUrl" :download="`aislingeach-${image.uuid}.png`" class="btn btn-download">
             <i class="fa-solid fa-download"></i> Download
           </a>
           <button @click="$emit('delete', image.uuid)" class="btn btn-icon btn-delete" title="Delete image">
             <i class="fa-solid fa-trash"></i>
           </button>
+        </div>
+      </div>
+      <!-- Request Details Overlay -->
+      <div v-if="showRequestDetails" class="request-details-overlay">
+        <div class="request-details-header">
+          <h3>Request Details</h3>
+          <button class="btn-close-details" @click="showRequestDetails = false">×</button>
+        </div>
+        <div class="request-details-body">
+          <pre>{{ formattedRequest }}</pre>
         </div>
       </div>
     </div>
@@ -120,6 +138,7 @@ export default {
     const isHidden = ref(!!props.image.is_hidden)
     const checkHiddenAuth = inject('checkHiddenAuth')
     const requestHiddenAccess = inject('requestHiddenAccess')
+    const showRequestDetails = ref(false)
 
     // Watch for prop changes when navigating between images
     watch(() => props.image, (newImage) => {
@@ -143,6 +162,15 @@ export default {
 
     const hasSettings = computed(() => {
       return props.image.full_request && props.image.full_request.trim() !== ''
+    })
+
+    const formattedRequest = computed(() => {
+      if (!props.image.full_request) return ''
+      try {
+        return JSON.stringify(JSON.parse(props.image.full_request), null, 2)
+      } catch (e) {
+        return props.image.full_request
+      }
     })
 
     const formatDate = (timestamp) => {
@@ -221,7 +249,9 @@ export default {
       toggleFavorite,
       toggleHidden,
       isProtected,
-      handleUnlock
+      handleUnlock,
+      showRequestDetails,
+      formattedRequest
     }
   }
 }
@@ -518,5 +548,75 @@ export default {
   background: #666;
   color: #fff;
   border-color: #666;
+}
+
+.btn-view-request {
+  background: #5856D6;
+  color: white;
+}
+
+.btn-view-request:hover {
+  background: #4745AC;
+}
+
+.request-details-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #1a1a1a;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem;
+}
+
+.request-details-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #333;
+}
+
+.request-details-header h3 {
+  margin: 0;
+  color: #fff;
+  font-size: 1.2rem;
+}
+
+.btn-close-details {
+  background: none;
+  border: none;
+  color: #999;
+  font-size: 2rem;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: color 0.2s;
+}
+
+.btn-close-details:hover {
+  color: #fff;
+}
+
+.request-details-body {
+  flex: 1;
+  overflow: auto;
+  background: #111;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid #333;
+}
+
+.request-details-body pre {
+  margin: 0;
+  color: #0f0;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 0.9rem;
+  white-space: pre-wrap;
+  word-break: break-all;
 }
 </style>
