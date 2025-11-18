@@ -1438,15 +1438,11 @@ export default {
 }
 
 .btn-delete-all-requests {
-  position: sticky;
-  top: 1rem;
+  position: absolute;
+  top: 0.75rem;
   right: 1rem;
   width: 48px;
   height: 48px;
-  margin-left: auto;
-  margin-right: 1rem;
-  margin-top: 1rem;
-  margin-bottom: -48px;
   border-radius: 50%;
   background: #2a2a2a;
   border: 1px solid #444;
@@ -1458,7 +1454,7 @@ export default {
   justify-content: center;
   transition: all 0.2s;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  z-index: 10;
+  z-index: 52;
 }
 
 .btn-delete-all-requests:hover {
