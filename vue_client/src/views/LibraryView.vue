@@ -10,17 +10,17 @@
 
     <!-- Requests Panel -->
     <div class="requests-panel" :class="{ open: isPanelOpen }">
-      <div class="panel-content">
-        <!-- Delete All Button -->
-        <button
-          v-if="requests.length > 0"
-          @click="showDeleteAllModal"
-          class="btn-delete-all-requests"
-          title="Delete all requests"
-        >
-          <i class="fa-solid fa-trash"></i>
-        </button>
+      <!-- Delete All Button -->
+      <button
+        v-if="requests.length > 0"
+        @click="showDeleteAllModal"
+        class="btn-delete-all-requests"
+        title="Delete all requests"
+      >
+        <i class="fa-solid fa-trash"></i>
+      </button>
 
+      <div class="panel-content">
         <div v-if="requests.length === 0" class="panel-empty-state">
           <p>No requests yet</p>
           <p class="hint">Click the + button to generate your first AI image</p>
