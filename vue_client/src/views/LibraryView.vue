@@ -1438,11 +1438,15 @@ export default {
 }
 
 .btn-delete-all-requests {
-  position: absolute;
+  position: sticky;
   top: 1rem;
   right: 1rem;
   width: 48px;
   height: 48px;
+  margin-left: auto;
+  margin-right: 1rem;
+  margin-top: 1rem;
+  margin-bottom: -48px;
   border-radius: 50%;
   background: #2a2a2a;
   border: 1px solid #444;
