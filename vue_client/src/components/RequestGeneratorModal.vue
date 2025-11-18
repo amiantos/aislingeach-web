@@ -293,6 +293,7 @@ import { requestsApi, imagesApi, settingsApi } from '../api/client.js'
 import { baseRequest, styleCopyParams } from '../config/baseRequest.js'
 import { getRandomPreset } from '../config/presets.js'
 import { useModelCache } from '../composables/useModelCache.js'
+import { useKudosEstimation } from '../composables/useKudosEstimation.js'
 import { splitPrompt, replaceNegativePlaceholder } from '../utils/promptUtils.js'
 import axios from 'axios'
 import ModelPicker from './ModelPicker.vue'
@@ -317,8 +318,6 @@ export default {
   emits: ['close', 'submit'],
   setup(props, { emit }) {
     const submitting = ref(false)
-    const estimating = ref(false)
-    const kudosEstimate = ref(null)
     const showModelPicker = ref(false)
     const showStylePicker = ref(false)
     const aspectLocked = ref(false)
@@ -346,8 +345,9 @@ export default {
       loras: []
     })
 
-    // Use model cache composable
+    // Use composables
     const { models, fetchModels, getMostPopularModel } = useModelCache()
+    const { kudosEstimate, estimating, estimateKudos: estimateKudosComposable } = useKudosEstimation()
 
     // Load worker preferences from localStorage
     const getWorkerPreferences = () => {
@@ -676,32 +676,11 @@ export default {
     const estimateKudos = async () => {
       // Don't estimate without a model - will fail
       if (!form.model) {
-        kudosEstimate.value = null
         return
       }
 
-      try {
-        estimating.value = true
-        const params = buildRequestParams()
-
-        // Use placeholder prompt if user hasn't entered one yet
-        if (!params.prompt || params.prompt.trim().length === 0) {
-          params.prompt = 'placeholder prompt for estimation'
-        }
-
-        // Remove negative prompt for estimation if it's empty
-        if (params.params.negative_prompt && !params.params.negative_prompt.trim()) {
-          delete params.params.negative_prompt
-        }
-
-        const response = await imagesApi.estimate(params)
-        kudosEstimate.value = response.data.kudos
-      } catch (error) {
-        console.error('Error estimating kudos:', error)
-        kudosEstimate.value = null
-      } finally {
-        estimating.value = false
-      }
+      const params = buildRequestParams()
+      await estimateKudosComposable(params)
     }
 
     const submitRequest = async () => {
