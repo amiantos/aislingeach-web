@@ -1345,7 +1345,8 @@ export default {
   right: 0;
   background: #171717;
   max-height: 0;
-  overflow: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   transition: transform 0.3s ease-out, box-shadow 0.3s ease-out;
   box-shadow: 0 -4px 20px rgba(0,0,0,0.5);
   z-index: 55; /* Above header but below tab */
