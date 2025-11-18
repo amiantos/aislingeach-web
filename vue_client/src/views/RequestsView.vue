@@ -27,6 +27,11 @@
       />
     </div>
 
+    <!-- Debug info (temporary) -->
+    <div style="position: fixed; top: 10px; right: 10px; background: red; color: white; padding: 10px; z-index: 9999; font-size: 12px;">
+      Debug: loading={{ loading }}, requests.length={{ requests.length }}, condition={{ !loading && requests.length > 0 }}
+    </div>
+
     <!-- Floating action button for delete all -->
     <button
       v-if="!loading && requests.length > 0"
