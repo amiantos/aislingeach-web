@@ -371,7 +371,7 @@ export default {
       useRandomSeed: true,
       karras: true,
       hiresFix: false,
-      hiresFixDenoisingStrength: 0.5,
+      hiresFixDenoisingStrength: 0.65,
       tiling: false,
       transparent: false,
       postProcessing: [],
@@ -459,27 +459,32 @@ export default {
         const { positive, negative } = splitPrompt(settings.prompt)
         form.prompt = positive
         form.negativePrompt = negative
+      } else {
+        form.prompt = ''
+        form.negativePrompt = ''
       }
 
       // Load model
       if (settings.models && settings.models.length > 0) {
         form.model = settings.models[0]
+      } else {
+        form.model = ''
       }
 
       // Load params
       if (settings.params) {
         const params = settings.params
         form.sampler = params.sampler_name !== undefined ? params.sampler_name : 'k_euler_a'
-        if (params.cfg_scale !== undefined) form.cfgScale = params.cfg_scale
-        if (params.height !== undefined) form.height = params.height
-        if (params.width !== undefined) form.width = params.width
-        if (params.karras !== undefined) form.karras = params.karras
-        if (params.hires_fix !== undefined) form.hiresFix = params.hires_fix
-        if (params.hires_fix_denoising_strength !== undefined) form.hiresFixDenoisingStrength = params.hires_fix_denoising_strength
-        if (params.clip_skip !== undefined) form.clipSkip = params.clip_skip
-        if (params.steps !== undefined) form.steps = params.steps
-        if (params.n !== undefined) form.n = params.n
-        if (params.tiling !== undefined) form.tiling = params.tiling
+        form.cfgScale = params.cfg_scale !== undefined ? params.cfg_scale : 7
+        form.height = params.height !== undefined ? params.height : 512
+        form.width = params.width !== undefined ? params.width : 512
+        form.karras = params.karras !== undefined ? params.karras : true
+        form.hiresFix = params.hires_fix !== undefined ? params.hires_fix : false
+        form.hiresFixDenoisingStrength = params.hires_fix_denoising_strength !== undefined ? params.hires_fix_denoising_strength : 0.65
+        form.clipSkip = params.clip_skip !== undefined ? params.clip_skip : 1
+        form.steps = params.steps !== undefined ? params.steps : 30
+        form.n = params.n !== undefined ? params.n : 1
+        form.tiling = params.tiling !== undefined ? params.tiling : false
         form.loras = params.loras ? [...params.loras] : []
         form.postProcessing = params.post_processing ? [...params.post_processing] : []
 
