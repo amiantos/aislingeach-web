@@ -914,6 +914,12 @@ export default {
 <style scoped>
 .library-view {
   padding: 0;
+  --panel-height: 40vh;
+  transition: padding-bottom 0.3s ease-out;
+}
+
+.library-view.panel-open {
+  padding-bottom: var(--panel-height);
 }
 
 .header {
@@ -1217,7 +1223,7 @@ export default {
   line-height: 1;
   cursor: pointer;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-  transition: all 0.2s;
+  transition: all 0.2s, transform 0.3s ease-out;
   z-index: 40;
   display: flex;
   align-items: center;
@@ -1248,6 +1254,18 @@ export default {
   transform: scale(0.95);
 }
 
+.library-view.panel-open .fab {
+  transform: translateY(calc(-1 * var(--panel-height)));
+}
+
+.library-view.panel-open .fab:hover {
+  transform: translateY(calc(-1 * var(--panel-height))) scale(1.05);
+}
+
+.library-view.panel-open .fab:active {
+  transform: translateY(calc(-1 * var(--panel-height))) scale(0.95);
+}
+
 /* Requests Panel Tab */
 .panel-tab {
   position: fixed;
@@ -1257,6 +1275,11 @@ export default {
   transform: translateX(-50%);
   cursor: pointer;
   z-index: 60; /* Higher than FABs (40) and Header (50) */
+  transition: transform 0.3s ease-out;
+}
+
+.library-view.panel-open .panel-tab {
+  transform: translate(-50%, calc(-1 * var(--panel-height)));
 }
 
 .panel-tab .tab-content {
@@ -1323,17 +1346,18 @@ export default {
   background: #171717;
   max-height: 0;
   overflow: hidden;
-  transition: max-height 0.3s ease-out, box-shadow 0.3s ease-out;
+  transition: transform 0.3s ease-out, box-shadow 0.3s ease-out;
   box-shadow: 0 -4px 20px rgba(0,0,0,0.5);
   z-index: 55; /* Above header but below tab */
   display: flex;
   flex-direction: column; /* Normal direction now */
+  height: var(--panel-height);
+  max-height: var(--panel-height);
+  transform: translateY(100%);
 }
 
 .requests-panel.open {
-  max-height: 40vh;
-  overflow-y: auto;
-  overscroll-behavior-y: contain;
+  transform: translateY(0);
 }
 
 .panel-content {
