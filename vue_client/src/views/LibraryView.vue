@@ -1336,6 +1336,10 @@ export default {
   overscroll-behavior-y: contain;
 }
 
+.requests-panel.open .panel-content {
+  min-height: 25vh;
+}
+
 .panel-content {
   padding: 1.5rem 2rem;
   background: #171717;
