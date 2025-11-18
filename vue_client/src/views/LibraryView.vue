@@ -180,7 +180,7 @@ export default {
     const gridContainer = ref(null)
     const hasMore = ref(true)
     const offset = ref(0)
-    const limit = 50
+    const limit = 100
     const searchQuery = ref('')
     const filters = ref({
       requestId: null,
