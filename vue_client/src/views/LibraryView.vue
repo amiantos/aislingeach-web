@@ -929,6 +929,10 @@ export default {
   transition: top 0.3s ease-out;
 }
 
+.library-view.panel-open .header {
+  top: 25vh;
+}
+
 .header-content {
   display: flex;
   justify-content: space-between;
