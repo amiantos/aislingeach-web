@@ -1,7 +1,7 @@
 <template>
   <div class="albums-panel" :class="{ open: isOpen }">
     <div class="panel-header">
-      <h3>Keywords</h3>
+      <h3>Frequent Keywords</h3>
       <button class="btn-close" @click="$emit('close')" title="Close">
         <i class="fa-solid fa-times"></i>
       </button>
@@ -13,34 +13,6 @@
       </div>
 
       <div v-else class="albums-list">
-        <!-- System Albums -->
-        <div
-          v-for="album in systemAlbums"
-          :key="album.id"
-          class="album-card"
-          @click="$emit('select', album)"
-        >
-          <div class="album-thumbnail">
-            <img
-              v-if="album.thumbnail"
-              :src="getThumbnailUrl(album.thumbnail)"
-              :alt="album.name"
-            />
-            <div v-else class="album-icon">
-              <i v-if="album.id === 'all'" class="fa-solid fa-images"></i>
-              <i v-else-if="album.id === 'favorites'" class="fa-solid fa-star"></i>
-              <i v-else-if="album.id === 'hidden'" class="fa-solid fa-eye-slash"></i>
-            </div>
-          </div>
-          <div class="album-info">
-            <div class="album-name">{{ album.name }}</div>
-            <div class="album-count">{{ album.count }}</div>
-          </div>
-        </div>
-
-        <!-- Divider -->
-        <div v-if="keywordAlbums.length > 0" class="albums-divider"></div>
-
         <!-- Keyword Albums -->
         <div
           v-for="album in keywordAlbums"
@@ -179,12 +151,6 @@ export default {
   gap: 0.75rem;
 }
 
-.albums-divider {
-  height: 1px;
-  background: #333;
-  margin: 0.5rem 0;
-}
-
 .album-card {
   background: #0f0f0f;
   border: 1px solid #333;
@@ -225,18 +191,6 @@ export default {
   align-items: center;
   justify-content: center;
   font-size: 1.5rem;
-}
-
-.album-icon i.fa-images {
-  color: #007AFF;
-}
-
-.album-icon i.fa-star {
-  color: #FFD60A;
-}
-
-.album-icon i.fa-eye-slash {
-  color: #999;
 }
 
 .album-icon i.fa-hashtag {
