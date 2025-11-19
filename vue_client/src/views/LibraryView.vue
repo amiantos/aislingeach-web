@@ -834,9 +834,14 @@ export default {
           sessionStorage.setItem('showHidden', 'true')
         }
       } else if (album.id.startsWith('keyword:')) {
-        // Extract keyword from ID and add to array if not present
+        // Extract keyword from ID and toggle it
         const keyword = album.id.replace('keyword:', '')
-        if (!filters.value.keywords.includes(keyword)) {
+        const index = filters.value.keywords.indexOf(keyword)
+        if (index !== -1) {
+          // Remove keyword if already present
+          filters.value.keywords.splice(index, 1)
+        } else {
+          // Add keyword if not present
           filters.value.keywords.push(keyword)
         }
         // Keep current favorite/hidden filters intact for keyword searches
