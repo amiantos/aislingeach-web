@@ -85,6 +85,29 @@
               />
               <button @click="applySearch" class="btn-search">Search</button>
             </div>
+
+            <!-- Favorites Toggle Button -->
+            <button
+              @click="toggleFavorites"
+              class="btn-favorites-toggle"
+              :class="{ active: filters.showFavoritesOnly }"
+              title="Show Favorites"
+            >
+              <i class="fa-solid fa-star"></i>
+            </button>
+
+            <!-- Overflow Menu -->
+            <div class="menu-container" ref="menuContainer">
+              <button @click="toggleMenu" class="btn-menu" title="More options">
+                <i class="fa-solid fa-ellipsis-vertical"></i>
+              </button>
+              <div v-if="showMenu" class="menu-dropdown">
+                <div class="menu-item" @click="toggleHiddenImages">
+                  <i class="fa-solid" :class="filters.showHidden ? 'fa-check-square' : 'fa-square'"></i>
+                  <span>Show Hidden Images</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -223,6 +246,10 @@ export default {
     // Albums panel state
     const isAlbumsPanelOpen = ref(false)
     const albums = ref([])
+
+    // Menu state
+    const showMenu = ref(false)
+    const menuContainer = ref(null)
 
     // Initialize image polling composable
     const imagePolling = useImagePolling({
@@ -409,6 +436,49 @@ export default {
       hasMore.value = true
       fetchImages()
       updateFilterUrl()
+    }
+
+    const toggleFavorites = () => {
+      filters.value.showFavoritesOnly = !filters.value.showFavoritesOnly
+      offset.value = 0
+      hasMore.value = true
+      fetchImages()
+      updateFilterUrl()
+    }
+
+    const toggleMenu = () => {
+      showMenu.value = !showMenu.value
+    }
+
+    const toggleHiddenImages = () => {
+      // Close the menu
+      showMenu.value = false
+
+      // If turning on, check authentication first
+      if (!filters.value.showHidden) {
+        // Check if user has access
+        if (checkHiddenAuth && !checkHiddenAuth()) {
+          // Request PIN access
+          if (requestHiddenAccess) {
+            requestHiddenAccess(() => {
+              // After successful auth, toggle on
+              filters.value.showHidden = true
+              offset.value = 0
+              hasMore.value = true
+              fetchImages()
+              fetchAlbums()
+            })
+          }
+          return
+        }
+      }
+
+      // Toggle the hidden images filter
+      filters.value.showHidden = !filters.value.showHidden
+      offset.value = 0
+      hasMore.value = true
+      fetchImages()
+      fetchAlbums()
     }
 
     const navigateImage = (direction) => {
@@ -672,61 +742,42 @@ export default {
     }
 
     const updateFilterUrl = () => {
-      // Build the path based on current filters
-      let path = '/'
-      if (filters.value.showFavoritesOnly) {
-        path = '/favorites'
-      } else if (filters.value.showHidden) {
-        path = '/hidden'
-      }
-
       // Build query params
       const query = {}
-      if (filters.value.keywords.length > 0) {
-        query.q = filters.value.keywords.join(',')
+
+      // Add favorites as special keyword if enabled
+      const queryKeywords = [...filters.value.keywords]
+      if (filters.value.showFavoritesOnly) {
+        queryKeywords.unshift('favorites')
+      }
+
+      if (queryKeywords.length > 0) {
+        query.q = queryKeywords.join(',')
       }
 
       // Update URL without triggering navigation
-      router.replace({ path, query })
+      router.replace({ path: '/', query })
     }
 
     const loadFiltersFromUrl = () => {
-      // Load filters from route
-      if (route.path === '/favorites') {
-        filters.value.showFavoritesOnly = true
-        filters.value.showHidden = false
-      } else if (route.path === '/hidden') {
-        // Check if user has access to hidden gallery
-        if (checkHiddenAuth && !checkHiddenAuth()) {
-          // Request PIN access
-          if (requestHiddenAccess) {
-            requestHiddenAccess(() => {
-              // After successful auth, set the filter and load images
-              filters.value.showFavoritesOnly = false
-              filters.value.showHidden = true
-              offset.value = 0
-              hasMore.value = true
-              fetchImages()
-              fetchAlbums()
-            })
-          }
-          // Navigate back to home while waiting for auth
-          router.replace('/')
-          return
-        } else {
-          filters.value.showFavoritesOnly = false
-          filters.value.showHidden = true
-        }
-      } else {
-        filters.value.showFavoritesOnly = false
-        filters.value.showHidden = false
-      }
+      // Reset filters
+      filters.value.showFavoritesOnly = false
+      filters.value.keywords = []
 
       // Load keywords from query params
       if (route.query.q) {
-        filters.value.keywords = route.query.q.split(',').filter(k => k.trim().length > 0)
-      } else {
-        filters.value.keywords = []
+        const queryKeywords = route.query.q.split(',').filter(k => k.trim().length > 0)
+
+        // Check for special 'favorites' keyword
+        const favoritesIndex = queryKeywords.indexOf('favorites')
+        if (favoritesIndex !== -1) {
+          filters.value.showFavoritesOnly = true
+          // Remove 'favorites' from keywords array (it's not a real search term)
+          queryKeywords.splice(favoritesIndex, 1)
+        }
+
+        // Set remaining keywords
+        filters.value.keywords = queryKeywords
       }
     }
 
@@ -751,8 +802,14 @@ export default {
           // Request PIN access
           if (requestHiddenAccess) {
             requestHiddenAccess(() => {
-              // After successful auth, navigate to hidden gallery
-              router.push('/hidden')
+              // After successful auth, toggle on hidden images
+              filters.value.showFavoritesOnly = false
+              filters.value.showHidden = true
+              filters.value.keywords = []
+              offset.value = 0
+              hasMore.value = true
+              fetchImages()
+              fetchAlbums()
             })
           }
           return
@@ -837,6 +894,12 @@ export default {
       fetchAlbums()
     })
 
+    const handleClickOutside = (event) => {
+      if (menuContainer.value && !menuContainer.value.contains(event.target)) {
+        showMenu.value = false
+      }
+    }
+
     onMounted(async () => {
       loadFiltersFromUrl()
       await fetchImages()
@@ -856,6 +919,7 @@ export default {
       }, 2000)
 
       window.addEventListener('scroll', handleScroll)
+      window.addEventListener('click', handleClickOutside)
     })
 
     onUnmounted(() => {
@@ -864,6 +928,7 @@ export default {
       }
       imagePolling.cleanup()
       window.removeEventListener('scroll', handleScroll)
+      window.removeEventListener('click', handleClickOutside)
     })
 
     return {
@@ -905,7 +970,14 @@ export default {
       isAlbumsPanelOpen,
       toggleAlbumsPanel,
       albums,
-      selectAlbum
+      selectAlbum,
+      // Menu and filters
+      showMenu,
+      menuContainer,
+      toggleFavorites,
+      toggleMenu,
+      toggleHiddenImages,
+      checkHiddenAuth
     }
   }
 }
@@ -1066,6 +1138,91 @@ export default {
 
 .btn-search:hover {
   background: #0051D5;
+}
+
+.btn-favorites-toggle {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid #333;
+  color: #999;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-favorites-toggle:hover {
+  background: #1a1a1a;
+  border-color: #666;
+  color: #FFD60A;
+}
+
+.btn-favorites-toggle.active {
+  background: #1a1a1a;
+  border-color: #FFD60A;
+  color: #FFD60A;
+}
+
+.menu-container {
+  position: relative;
+}
+
+.btn-menu {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid #333;
+  color: #999;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-menu:hover {
+  background: #1a1a1a;
+  border-color: #666;
+  color: #fff;
+}
+
+.menu-dropdown {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  min-width: 200px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  z-index: 100;
+  overflow: hidden;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  color: #fff;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.menu-item:hover {
+  background: #2a2a2a;
+}
+
+.menu-item i {
+  width: 20px;
+  color: #999;
 }
 
 .loading,
