@@ -113,7 +113,7 @@ export default {
   top: 0;
   left: 0;
   bottom: 0;
-  width: 200px;
+  width: 300px;
   background: #171717;
   border-right: 1px solid #333;
   z-index: 100;
