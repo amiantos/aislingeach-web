@@ -122,7 +122,7 @@ router.get('/', (req, res) => {
       WHERE ${baseWhere}
     `).all().map(row => row.prompt_simple);
 
-    const topKeywords = extractKeywords(prompts, 20);
+    const topKeywords = extractKeywords(prompts, 50);
 
     topKeywords.forEach(({ keyword, count }) => {
       // Get most recent image for this keyword

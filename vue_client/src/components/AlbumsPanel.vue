@@ -1,7 +1,7 @@
 <template>
   <div class="albums-panel" :class="{ open: isOpen }">
     <div class="panel-header">
-      <h3>Albums</h3>
+      <h3>Keywords</h3>
       <button class="btn-close" @click="$emit('close')" title="Close">
         <i class="fa-solid fa-times"></i>
       </button>
