@@ -103,8 +103,7 @@
               </button>
               <div v-if="showMenu" class="menu-dropdown">
                 <div class="menu-item" @click="toggleHiddenImages">
-                  <i class="fa-solid" :class="filters.showHidden ? 'fa-check-square' : 'fa-square'"></i>
-                  <span>Show Hidden Images</span>
+                  <span>{{ filters.showHidden ? 'Hide Hidden Images' : 'Show Hidden Images' }}</span>
                 </div>
               </div>
             </div>
@@ -282,8 +281,6 @@ export default {
     const galleryTitle = computed(() => {
       if (filters.value.showFavoritesOnly) {
         return 'Favorite Images'
-      } else if (filters.value.showHidden) {
-        return 'Hidden Images'
       }
       return 'All Images'
     })
@@ -1199,7 +1196,7 @@ export default {
   background: #1a1a1a;
   border: 1px solid #333;
   border-radius: 8px;
-  min-width: 200px;
+  min-width: 183px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
   z-index: 100;
   overflow: hidden;
@@ -1283,7 +1280,7 @@ export default {
   right: 0.5rem;
   background: rgba(0, 0, 0, 0.8);
   color: #FFD60A;
-  font-size: 1.5rem;
+  font-size: 1rem;
   width: 2rem;
   height: 2rem;
   display: flex;
@@ -1300,7 +1297,7 @@ export default {
   left: 0.5rem;
   background: rgba(0, 0, 0, 0.8);
   color: #999;
-  font-size: 1.5rem;
+  font-size: 1rem;
   width: 2rem;
   height: 2rem;
   display: flex;

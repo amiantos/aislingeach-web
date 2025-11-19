@@ -49,17 +49,14 @@ router.get('/', (req, res) => {
 
     // Parse filter params for context-aware keyword albums
     const showFavorites = req.query.favorites === 'true';
-    const showHidden = req.query.hidden === 'true';
+    const includeHidden = req.query.includeHidden === 'true';
 
     // Build base query for filtering
     let baseWhere = 'is_trashed = 0';
-    if (showFavorites && showHidden) {
-      baseWhere += ' AND is_favorite = 1 AND is_hidden = 1';
-    } else if (showFavorites) {
-      baseWhere += ' AND is_favorite = 1 AND is_hidden = 0';
-    } else if (showHidden) {
-      baseWhere += ' AND is_hidden = 1';
-    } else {
+    if (showFavorites) {
+      baseWhere += ' AND is_favorite = 1';
+    }
+    if (!includeHidden) {
       baseWhere += ' AND is_hidden = 0';
     }
 

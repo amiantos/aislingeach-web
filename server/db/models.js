@@ -117,17 +117,13 @@ export const GeneratedImage = {
     const params = [];
 
     // Apply filters
-    if (filters.showFavorites && filters.showHidden) {
-      // Both filters: show images that are favorited AND hidden
-      query += ` AND is_favorite = 1 AND is_hidden = 1`;
-    } else if (filters.showFavorites) {
-      // Favorites only: show favorited images that are NOT hidden
-      query += ` AND is_favorite = 1 AND is_hidden = 0`;
-    } else if (filters.showHidden) {
-      // Hidden only: show all hidden images
-      query += ` AND is_hidden = 1`;
-    } else {
-      // Default view: exclude hidden images
+    if (filters.showFavorites) {
+      // Show favorited images
+      query += ` AND is_favorite = 1`;
+    }
+
+    // Exclude hidden images unless includeHidden is true
+    if (!filters.includeHidden) {
       query += ` AND is_hidden = 0`;
     }
 
@@ -161,17 +157,13 @@ export const GeneratedImage = {
     const params = [`%${keywords}%`];
 
     // Apply filters
-    if (filters.showFavorites && filters.showHidden) {
-      // Both filters: show images that are favorited AND hidden
-      query += ` AND is_favorite = 1 AND is_hidden = 1`;
-    } else if (filters.showFavorites) {
-      // Favorites only: show favorited images that are NOT hidden
-      query += ` AND is_favorite = 1 AND is_hidden = 0`;
-    } else if (filters.showHidden) {
-      // Hidden only: show all hidden images
-      query += ` AND is_hidden = 1`;
-    } else {
-      // Default view: exclude hidden images
+    if (filters.showFavorites) {
+      // Show favorited images
+      query += ` AND is_favorite = 1`;
+    }
+
+    // Exclude hidden images unless includeHidden is true
+    if (!filters.includeHidden) {
       query += ` AND is_hidden = 0`;
     }
 
