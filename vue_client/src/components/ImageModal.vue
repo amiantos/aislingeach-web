@@ -84,11 +84,19 @@
           </button>
           <button
             v-if="hasSettings"
-            @click="showRequestDetails = true"
+            @click="showDetailsView('request')"
             class="btn btn-view-request"
             title="View full request JSON"
           >
             <i class="fa-solid fa-code"></i> View Request
+          </button>
+          <button
+            v-if="hasResponse"
+            @click="showDetailsView('response')"
+            class="btn btn-view-response"
+            title="View full response JSON"
+          >
+            <i class="fa-solid fa-file-code"></i> View Response
           </button>
           <a :href="imageUrl" :download="`aislingeach-${image.uuid}.png`" class="btn btn-download">
             <i class="fa-solid fa-download"></i> Download
@@ -98,14 +106,20 @@
           </button>
         </div>
       </div>
-      <!-- Request Details Overlay -->
-      <div v-if="showRequestDetails" class="request-details-overlay">
+      <!-- Details Overlay -->
+      <div v-if="showDetails" class="request-details-overlay">
         <div class="request-details-header">
-          <h3>Request Details</h3>
-          <button class="btn-close-details" @click="showRequestDetails = false">×</button>
+          <h3>{{ detailsTitle }}</h3>
+          <div class="header-actions">
+            <button class="btn-copy" @click="copyToClipboard" :title="copyButtonText">
+              <i :class="copied ? 'fa-solid fa-check' : 'fa-solid fa-copy'"></i>
+              {{ copyButtonText }}
+            </button>
+            <button class="btn-close-details" @click="closeDetails">×</button>
+          </div>
         </div>
         <div class="request-details-body">
-          <pre>{{ formattedRequest }}</pre>
+          <pre>{{ currentDetailsContent }}</pre>
         </div>
       </div>
     </div>
@@ -138,7 +152,9 @@ export default {
     const isHidden = ref(!!props.image.is_hidden)
     const checkHiddenAuth = inject('checkHiddenAuth')
     const requestHiddenAccess = inject('requestHiddenAccess')
-    const showRequestDetails = ref(false)
+    const showDetails = ref(false)
+    const detailsType = ref('request')
+    const copied = ref(false)
 
     // Watch for prop changes when navigating between images
     watch(() => props.image, (newImage) => {
@@ -164,6 +180,10 @@ export default {
       return props.image.full_request && props.image.full_request.trim() !== ''
     })
 
+    const hasResponse = computed(() => {
+      return props.image.full_response && props.image.full_response.trim() !== ''
+    })
+
     const formattedRequest = computed(() => {
       if (!props.image.full_request) return ''
       try {
@@ -172,6 +192,51 @@ export default {
         return props.image.full_request
       }
     })
+
+    const formattedResponse = computed(() => {
+      if (!props.image.full_response) return ''
+      try {
+        return JSON.stringify(JSON.parse(props.image.full_response), null, 2)
+      } catch (e) {
+        return props.image.full_response
+      }
+    })
+
+    const detailsTitle = computed(() => {
+      return detailsType.value === 'request' ? 'Request Details' : 'Response Details'
+    })
+
+    const currentDetailsContent = computed(() => {
+      return detailsType.value === 'request' ? formattedRequest.value : formattedResponse.value
+    })
+
+    const copyButtonText = computed(() => {
+      return copied.value ? 'Copied!' : 'Copy'
+    })
+
+    const showDetailsView = (type) => {
+      detailsType.value = type
+      showDetails.value = true
+      copied.value = false
+    }
+
+    const closeDetails = () => {
+      showDetails.value = false
+      copied.value = false
+    }
+
+    const copyToClipboard = async () => {
+      try {
+        await navigator.clipboard.writeText(currentDetailsContent.value)
+        copied.value = true
+        setTimeout(() => {
+          copied.value = false
+        }, 2000)
+      } catch (error) {
+        console.error('Failed to copy to clipboard:', error)
+        alert('Failed to copy to clipboard')
+      }
+    }
 
     const formatDate = (timestamp) => {
       const date = new Date(timestamp)
@@ -243,6 +308,7 @@ export default {
       imageUrl,
       showNavigation,
       hasSettings,
+      hasResponse,
       formatDate,
       isFavorite,
       isHidden,
@@ -250,8 +316,15 @@ export default {
       toggleHidden,
       isProtected,
       handleUnlock,
-      showRequestDetails,
-      formattedRequest
+      showDetails,
+      detailsType,
+      detailsTitle,
+      currentDetailsContent,
+      showDetailsView,
+      closeDetails,
+      copyToClipboard,
+      copied,
+      copyButtonText
     }
   }
 }
@@ -559,6 +632,15 @@ export default {
   background: #4745AC;
 }
 
+.btn-view-response {
+  background: #AF52DE;
+  color: white;
+}
+
+.btn-view-response:hover {
+  background: #8E44AD;
+}
+
 .request-details-overlay {
   position: absolute;
   top: 0;
@@ -585,6 +667,35 @@ export default {
   margin: 0;
   color: #fff;
   font-size: 1.2rem;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.btn-copy {
+  background: #007AFF;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-copy:hover {
+  background: #0051D5;
+}
+
+.btn-copy i.fa-check {
+  color: #34C759;
 }
 
 .btn-close-details {
