@@ -180,10 +180,17 @@ export const GeneratedImage = {
   findByKeywords(keywords, limit = 100, filters = {}) {
     let query = `
       SELECT * FROM generated_images
-      WHERE is_trashed = 0 AND prompt_simple LIKE ?
+      WHERE is_trashed = 0
     `;
 
-    const params = [`%${keywords}%`];
+    const params = [];
+
+    // Split keywords by comma and add AND conditions for each
+    const keywordList = keywords.split(',').map(k => k.trim()).filter(k => k.length > 0);
+    keywordList.forEach(keyword => {
+      query += ` AND prompt_simple LIKE ?`;
+      params.push(`%${keyword}%`);
+    });
 
     // Apply filters
     if (filters.showFavorites) {
@@ -210,10 +217,17 @@ export const GeneratedImage = {
   countByKeywords(keywords, filters = {}) {
     let query = `
       SELECT COUNT(*) as count FROM generated_images
-      WHERE is_trashed = 0 AND prompt_simple LIKE ?
+      WHERE is_trashed = 0
     `;
 
-    const params = [`%${keywords}%`];
+    const params = [];
+
+    // Split keywords by comma and add AND conditions for each (same as findByKeywords)
+    const keywordList = keywords.split(',').map(k => k.trim()).filter(k => k.length > 0);
+    keywordList.forEach(keyword => {
+      query += ` AND prompt_simple LIKE ?`;
+      params.push(`%${keyword}%`);
+    });
 
     // Apply same filters as findByKeywords
     if (filters.showFavorites) {

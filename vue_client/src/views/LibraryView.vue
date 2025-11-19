@@ -297,8 +297,8 @@ export default {
           response = await imagesApi.getByRequestId(filters.value.requestId, limit)
           hasMore.value = false // Request images don't paginate
         } else if (filters.value.keywords.length > 0) {
-          // Join keywords with space for search
-          const searchTerms = filters.value.keywords.join(' ')
+          // Join keywords with comma for search (supports AND filtering)
+          const searchTerms = filters.value.keywords.join(',')
           response = await imagesApi.search(searchTerms, limit, filters.value)
           hasMore.value = false // Search doesn't paginate yet
         } else {
