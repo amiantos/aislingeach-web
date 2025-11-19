@@ -218,6 +218,7 @@ export default {
     const router = useRouter()
     const route = useRoute()
     const images = ref([])
+    const totalCount = ref(0)
     const loading = ref(true)
     const selectedImage = ref(null)
     const gridContainer = ref(null)
@@ -279,10 +280,8 @@ export default {
     })
 
     const galleryTitle = computed(() => {
-      if (filters.value.showFavoritesOnly) {
-        return 'Favorite Images'
-      }
-      return 'All Images'
+      const count = totalCount.value
+      return `${count} Image${count !== 1 ? 's' : ''}`
     })
 
     const fetchImages = async (append = false) => {
@@ -304,12 +303,14 @@ export default {
           response = await imagesApi.getAll(limit, offset.value, filters.value)
         }
 
-        const newImages = response.data
+        const newImages = response.data.data || []
+        totalCount.value = response.data.total || 0
 
         if (append) {
           images.value = [...images.value, ...newImages]
         } else {
           images.value = newImages
+          offset.value = 0
         }
 
         if (newImages.length < limit) {
@@ -319,6 +320,7 @@ export default {
         }
       } catch (error) {
         console.error('Error fetching images:', error)
+        totalCount.value = 0
       } finally {
         loading.value = false
       }

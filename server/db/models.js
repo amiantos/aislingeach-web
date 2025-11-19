@@ -138,6 +138,26 @@ export const GeneratedImage = {
     return stmt.all(...params);
   },
 
+  countAll(filters = {}) {
+    let query = `
+      SELECT COUNT(*) as count FROM generated_images
+      WHERE is_trashed = 0
+    `;
+
+    // Apply same filters as findAll
+    if (filters.showFavorites) {
+      query += ` AND is_favorite = 1`;
+    }
+
+    if (!filters.includeHidden) {
+      query += ` AND is_hidden = 0`;
+    }
+
+    const stmt = db.prepare(query);
+    const result = stmt.get();
+    return result.count;
+  },
+
   findByRequestId(requestId, limit = 100) {
     const stmt = db.prepare(`
       SELECT * FROM generated_images
@@ -146,6 +166,15 @@ export const GeneratedImage = {
       LIMIT ?
     `);
     return stmt.all(requestId, limit);
+  },
+
+  countByRequestId(requestId) {
+    const stmt = db.prepare(`
+      SELECT COUNT(*) as count FROM generated_images
+      WHERE request_id = ? AND is_trashed = 0
+    `);
+    const result = stmt.get(requestId);
+    return result.count;
   },
 
   findByKeywords(keywords, limit = 100, filters = {}) {
@@ -176,6 +205,28 @@ export const GeneratedImage = {
 
     const stmt = db.prepare(query);
     return stmt.all(...params);
+  },
+
+  countByKeywords(keywords, filters = {}) {
+    let query = `
+      SELECT COUNT(*) as count FROM generated_images
+      WHERE is_trashed = 0 AND prompt_simple LIKE ?
+    `;
+
+    const params = [`%${keywords}%`];
+
+    // Apply same filters as findByKeywords
+    if (filters.showFavorites) {
+      query += ` AND is_favorite = 1`;
+    }
+
+    if (!filters.includeHidden) {
+      query += ` AND is_hidden = 0`;
+    }
+
+    const stmt = db.prepare(query);
+    const result = stmt.get(...params);
+    return result.count;
   },
 
   update(uuid, data) {
