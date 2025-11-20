@@ -1301,10 +1301,6 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.75rem;
-  background: #0f0f0f;
-  border: 1px solid #333;
-  border-radius: 6px;
 }
 
 .aspect-ratio-text {
@@ -1365,7 +1361,7 @@ export default {
   width: 100%;
   padding: 0.75rem;
   margin-top: 1rem;
-  background: linear-gradient(180deg, #5e5ce6 0%, #4a4acf 100%);
+  background: #007AFF;
   border: none;
   border-radius: 8px;
   color: white;
@@ -1380,13 +1376,11 @@ export default {
 }
 
 .btn-swap-dimensions:hover {
-  background: linear-gradient(180deg, #4a4acf 0%, #3838b8 100%);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(94, 92, 230, 0.3);
+  background: #0051D5;
 }
 
 .btn-swap-dimensions:active {
-  transform: translateY(0);
+  transform: scale(0.98);
 }
 
 .swap-icon {
