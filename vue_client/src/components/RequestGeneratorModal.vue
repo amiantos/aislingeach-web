@@ -60,13 +60,13 @@
               <div class="form-group">
                 <label>Style</label>
                 <div class="selector-button" @click="showStylePicker = true">
-                  <span class="selector-value">{{ selectedStyleName }}</span>
+                  <span class="selector-value">{{ selectedStyleName || 'None' }}</span>
                   <span class="selector-arrow">›</span>
                 </div>
               </div>
 
-              <!-- Apply Style Button (When Style is Selected) -->
-              <div v-if="selectedStyleName !== 'None'" class="style-actions">
+              <!-- Apply/Remove Style Buttons (When Style is Selected) -->
+              <div v-if="selectedStyleName" class="style-actions">
                 <button
                   type="button"
                   @click="applyStyle"
@@ -74,11 +74,21 @@
                 >
                   Apply Style
                 </button>
+                <button
+                  type="button"
+                  @click="removeStyle"
+                  class="btn btn-remove-style"
+                >
+                  Remove Style
+                </button>
+                <p class="style-info-text">
+                  While you have a style selected, all generation settings are controlled by the style. Remove or apply the style to access more generation settings.
+                </p>
               </div>
             </div>
 
             <!-- Full Parameters (Only Visible When NO Style is Selected) -->
-            <div v-if="selectedStyleName === 'None'" class="full-parameters">
+            <div v-if="!selectedStyleName" class="full-parameters">
               <!-- Dimensions Section -->
               <h4 class="section-title">Dimensions</h4>
               <div class="dimensions-section">
@@ -448,7 +458,7 @@ export default {
     const showStylePicker = ref(false)
     const aspectLocked = ref(false)
     const aspectRatio = ref(1)
-    const selectedStyleName = ref('None')
+    const selectedStyleName = ref('')
     const selectedStyleData = ref(null)
 
     const form = reactive({
@@ -547,7 +557,7 @@ export default {
 
     const onStyleSelect = (style) => {
       selectedStyleName.value = style.name
-      selectedStyleData.value = style.name === 'None' ? null : style
+      selectedStyleData.value = style
     }
 
     // Load settings from an arbitrary settings object
@@ -631,7 +641,7 @@ export default {
       form.transparent = settings.transparent !== undefined ? settings.transparent : false
 
       // Clear any selected style
-      selectedStyleName.value = 'None'
+      selectedStyleName.value = ''
       selectedStyleData.value = null
 
       // Re-estimate kudos
@@ -643,8 +653,13 @@ export default {
       loadSettings(preset)
     }
 
+    const removeStyle = () => {
+      selectedStyleName.value = ''
+      selectedStyleData.value = null
+    }
+
     const applyStyle = () => {
-      if (!selectedStyleData.value || selectedStyleData.value.name === 'None') {
+      if (!selectedStyleData.value) {
         return
       }
 
@@ -691,9 +706,8 @@ export default {
       form.upscalers = []
       form.stripBackground = false
 
-      // Deselect the style (set back to None)
-      selectedStyleName.value = 'None'
-      selectedStyleData.value = null
+      // Deselect the style
+      removeStyle()
 
       estimateKudos()
     }
@@ -747,7 +761,7 @@ export default {
 
     const buildPromptWithStyle = () => {
       // If no style is selected or no style data, return prompts as-is
-      if (selectedStyleName.value === 'None' || !selectedStyleData.value || !selectedStyleData.value.prompt) {
+      if (!selectedStyleName.value || !selectedStyleData.value || !selectedStyleData.value.prompt) {
         // Combine prompt and negative prompt with ### separator if both exist
         if (form.prompt && form.negativePrompt) {
           return {
@@ -813,7 +827,7 @@ export default {
       }
 
       // If a style is selected, apply style parameters on top of baseRequest
-      if (selectedStyleName.value !== 'None' && selectedStyleData.value) {
+      if (selectedStyleName.value && selectedStyleData.value) {
         const style = selectedStyleData.value
 
         // Copy style parameters to request
@@ -1036,6 +1050,7 @@ export default {
       onModelSelect,
       onStyleSelect,
       applyStyle,
+      removeStyle,
       onAspectLockToggle,
       onDimensionChange,
       swapDimensions,
@@ -1352,7 +1367,9 @@ export default {
 }
 
 .style-actions {
-  margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .btn-apply-style,
@@ -1383,6 +1400,17 @@ export default {
 
 .btn-remove-style:hover {
   background: #cc2e24;
+}
+
+.style-info-text {
+  margin: 0;
+  padding: 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #999;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* Section Title (outside boxes) */

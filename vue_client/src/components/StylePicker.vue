@@ -69,37 +69,69 @@
         {{ error }}
       </div>
 
-      <div v-else class="style-grid" :class="`grid-${previewOptions.size}`">
-        <!-- None option -->
-        <div
-          class="style-card"
-          :class="{ selected: !selectedStyle || selectedStyle === 'None' }"
-          @click="selectStyle({ name: 'None' })"
-        >
-          <div class="style-preview no-preview">
-            <span class="no-preview-text">None</span>
-          </div>
-          <div class="style-name">None</div>
-        </div>
-
-        <!-- All other styles -->
-        <div
-          v-for="style in filteredStyles"
-          :key="style.name"
-          class="style-card"
-          :class="{ selected: selectedStyle === style.name }"
-          @click="selectStyle(style)"
-        >
-          <div
-            class="style-preview"
-            :class="`preview-${previewOptions.type}`"
-            :style="getPreviewStyle(style)"
-          >
-            <div v-if="!getPreviewUrl(style)" class="no-preview">
-              <span class="no-preview-text">{{ style.name }}</span>
+      <div v-else>
+        <!-- Favorites Section -->
+        <div v-if="favoriteStyles.length > 0" class="section">
+          <h4 class="section-title">Favorites</h4>
+          <div class="style-grid" :class="`grid-${previewOptions.size}`">
+            <div
+              v-for="style in favoriteStyles"
+              :key="style.name"
+              class="style-card"
+              :class="{ selected: selectedStyle === style.name }"
+              @click="selectStyle(style)"
+            >
+              <div
+                class="style-preview"
+                :class="`preview-${previewOptions.type}`"
+                :style="getPreviewStyle(style)"
+              >
+                <button
+                  class="btn-favorite active"
+                  @click="toggleFavorite(style.name, $event)"
+                  title="Remove from favorites"
+                >
+                  <i class="fa-solid fa-star"></i>
+                </button>
+                <div v-if="!getPreviewUrl(style)" class="no-preview">
+                  <span class="no-preview-text">{{ style.name }}</span>
+                </div>
+              </div>
+              <div class="style-name">{{ style.name }}</div>
             </div>
           </div>
-          <div class="style-name">{{ style.name }}</div>
+        </div>
+
+        <!-- All Styles Section -->
+        <div class="section">
+          <h4 class="section-title">All Styles</h4>
+          <div class="style-grid" :class="`grid-${previewOptions.size}`">
+            <div
+              v-for="style in nonFavoriteStyles"
+              :key="style.name"
+              class="style-card"
+              :class="{ selected: selectedStyle === style.name }"
+              @click="selectStyle(style)"
+            >
+              <div
+                class="style-preview"
+                :class="`preview-${previewOptions.type}`"
+                :style="getPreviewStyle(style)"
+              >
+                <button
+                  class="btn-favorite"
+                  @click="toggleFavorite(style.name, $event)"
+                  title="Add to favorites"
+                >
+                  <i class="fa-regular fa-star"></i>
+                </button>
+                <div v-if="!getPreviewUrl(style)" class="no-preview">
+                  <span class="no-preview-text">{{ style.name }}</span>
+                </div>
+              </div>
+              <div class="style-name">{{ style.name }}</div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -126,6 +158,7 @@ export default {
     const selectedStyle = ref(props.currentStyle)
     const searchQuery = ref('')
     const showMenu = ref(false)
+    const favorites = ref([])
 
     const previewOptions = reactive({
       subject: 'place',
@@ -142,6 +175,18 @@ export default {
         style.name.toLowerCase().includes(query) ||
         (style.prompt && style.prompt.toLowerCase().includes(query)) ||
         (style.model && style.model.toLowerCase().includes(query))
+      )
+    })
+
+    const favoriteStyles = computed(() => {
+      return filteredStyles.value.filter(style =>
+        favorites.value.includes(style.name)
+      )
+    })
+
+    const nonFavoriteStyles = computed(() => {
+      return filteredStyles.value.filter(style =>
+        !favorites.value.includes(style.name)
       )
     })
 
@@ -167,9 +212,9 @@ export default {
     const loadPreviewPreferences = async () => {
       try {
         const response = await settingsApi.get()
-        if (response.data && response.data.default_params) {
+        if (response && response.default_params) {
           try {
-            const params = JSON.parse(response.data.default_params)
+            const params = JSON.parse(response.default_params)
             if (params.stylePreviewOptions) {
               Object.assign(previewOptions, params.stylePreviewOptions)
             }
@@ -185,8 +230,8 @@ export default {
     const savePreviewPreferences = async () => {
       try {
         const response = await settingsApi.get()
-        const currentParams = response.data.default_params
-          ? JSON.parse(response.data.default_params)
+        const currentParams = response.default_params
+          ? JSON.parse(response.default_params)
           : {}
 
         currentParams.stylePreviewOptions = { ...previewOptions }
@@ -197,6 +242,49 @@ export default {
       } catch (error) {
         console.error('Error saving preview preferences:', error)
       }
+    }
+
+    const loadFavorites = async () => {
+      try {
+        const response = await settingsApi.get()
+        if (response && response.favorite_styles) {
+          try {
+            const parsed = JSON.parse(response.favorite_styles)
+            favorites.value = Array.isArray(parsed) ? parsed : []
+          } catch (parseError) {
+            console.error('Error parsing favorite_styles:', parseError)
+            favorites.value = []
+          }
+        } else {
+          favorites.value = []
+        }
+      } catch (error) {
+        console.error('Error loading favorites:', error)
+        favorites.value = []
+      }
+    }
+
+    const saveFavorites = async () => {
+      try {
+        await settingsApi.update({ favoriteStyles: favorites.value })
+      } catch (error) {
+        console.error('Error saving favorites:', error)
+      }
+    }
+
+    const toggleFavorite = (styleName, event) => {
+      // Stop event propagation so clicking the star doesn't select the style
+      if (event) {
+        event.stopPropagation()
+      }
+
+      const index = favorites.value.indexOf(styleName)
+      if (index > -1) {
+        favorites.value.splice(index, 1)
+      } else {
+        favorites.value.push(styleName)
+      }
+      saveFavorites()
     }
 
     const fetchStyles = async () => {
@@ -225,6 +313,7 @@ export default {
     })
 
     onMounted(async () => {
+      await loadFavorites()
       await loadPreviewPreferences()
       await fetchStyles()
     })
@@ -238,6 +327,10 @@ export default {
       showMenu,
       previewOptions,
       filteredStyles,
+      favoriteStyles,
+      nonFavoriteStyles,
+      favorites,
+      toggleFavorite,
       selectStyle,
       getPreviewUrl,
       getPreviewStyle
@@ -480,5 +573,60 @@ export default {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.section {
+  margin-bottom: 1.5rem;
+}
+
+.section:last-child {
+  margin-bottom: 0;
+}
+
+.section-title {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.875rem;
+  color: #999;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0 0.5rem;
+}
+
+.btn-favorite {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  border: none;
+  color: #666;
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  line-height: 1;
+  border-radius: 50%;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  z-index: 2;
+}
+
+.btn-favorite:hover {
+  background: rgba(0, 0, 0, 0.8);
+  color: #FFD700;
+  transform: scale(1.1);
+}
+
+.btn-favorite.active {
+  color: #FFD700;
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.btn-favorite.active:hover {
+  background: rgba(0, 0, 0, 0.9);
 }
 </style>
