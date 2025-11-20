@@ -123,15 +123,15 @@
                       <span class="toggle-slider"></span>
                     </label>
                   </div>
-                </div>
 
-                <button
-                  type="button"
-                  class="btn-swap-dimensions"
-                  @click="swapDimensions"
-                >
-                  <span class="swap-icon">⇄</span> Swap Dimensions
-                </button>
+                  <button
+                    type="button"
+                    class="btn-swap-dimensions"
+                    @click="swapDimensions"
+                  >
+                    <span class="swap-icon">⇄</span> Swap Dimensions
+                  </button>
+                </div>
               </div>
 
               <!-- Generation Settings Section -->
@@ -231,9 +231,6 @@
 
                 <div class="form-group">
                   <label>Other Options</label>
-                </div>
-
-                <div class="form-group">
                   <div class="toggle-control">
                     <span>Karras</span>
                     <label class="toggle-switch">
@@ -241,9 +238,6 @@
                       <span class="toggle-slider"></span>
                     </label>
                   </div>
-                </div>
-
-                <div class="form-group">
                   <div class="hires-fix-container">
                     <div class="toggle-control">
                       <span>Hires Fix</span>
@@ -301,27 +295,42 @@
               <!-- Upscalers Section -->
               <h4 class="section-title">Upscalers</h4>
               <div class="upscalers-section">
-                <div class="checkbox-group">
-                  <label class="checkbox-item">
-                    <input type="checkbox" value="4x_AnimeSharp" v-model="form.upscalers" />
+                <div class="toggle-list">
+                  <div class="toggle-control">
                     <span>4x AnimeSharp</span>
-                  </label>
-                  <label class="checkbox-item">
-                    <input type="checkbox" value="NMKD_Siax" v-model="form.upscalers" />
+                    <label class="toggle-switch">
+                      <input type="checkbox" value="4x_AnimeSharp" v-model="form.upscalers" />
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                  <div class="toggle-control">
                     <span>NMKD Siax</span>
-                  </label>
-                  <label class="checkbox-item">
-                    <input type="checkbox" value="RealESRGAN_x2plus" v-model="form.upscalers" />
+                    <label class="toggle-switch">
+                      <input type="checkbox" value="NMKD_Siax" v-model="form.upscalers" />
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                  <div class="toggle-control">
                     <span>RealESRGAN x2</span>
-                  </label>
-                  <label class="checkbox-item">
-                    <input type="checkbox" value="RealESRGAN_x4plus_anime_6B" v-model="form.upscalers" />
+                    <label class="toggle-switch">
+                      <input type="checkbox" value="RealESRGAN_x2plus" v-model="form.upscalers" />
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                  <div class="toggle-control">
                     <span>RealESRGAN x4 Anime</span>
-                  </label>
-                  <label class="checkbox-item">
-                    <input type="checkbox" value="RealESRGAN_x4plus" v-model="form.upscalers" />
+                    <label class="toggle-switch">
+                      <input type="checkbox" value="RealESRGAN_x4plus_anime_6B" v-model="form.upscalers" />
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                  <div class="toggle-control">
                     <span>RealESRGAN x4</span>
-                  </label>
+                    <label class="toggle-switch">
+                      <input type="checkbox" value="RealESRGAN_x4plus" v-model="form.upscalers" />
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
                 </div>
               </div>
 
@@ -1051,6 +1060,16 @@ export default {
   margin-bottom: 1.5rem;
 }
 
+.face-fix-section .form-group {
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.face-fix-section .form-group:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
 .modal-header h2 {
   margin: 0;
   font-size: 1.5rem;
@@ -1313,12 +1332,32 @@ export default {
   margin-bottom: 1.5rem;
 }
 
+.basic-settings-section .form-group {
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.basic-settings-section .form-group:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
 /* Generation Settings Section */
 .generation-settings-section {
   padding: 1rem;
   background: rgba(255, 255, 255, 0.05);
   border-radius: 8px;
   margin-bottom: 1.5rem;
+}
+
+.generation-settings-section .form-group {
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.generation-settings-section .form-group:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
 }
 
 /* Seed Control Group */
@@ -1384,6 +1423,20 @@ export default {
   background: rgba(255, 255, 255, 0.05);
   border-radius: 8px;
   margin-bottom: 1.5rem;
+}
+
+.dimensions-section .form-group {
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dimensions-section .form-group:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.dimensions-section .btn-swap-dimensions {
+  margin-top: 1rem;
 }
 
 /* Aspect Ratio Control */
@@ -1486,6 +1539,26 @@ export default {
   margin-bottom: 1.5rem;
 }
 
+.upscalers-section .toggle-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.upscalers-section .toggle-control {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.upscalers-section .toggle-control:first-child {
+  padding-top: 0;
+}
+
+.upscalers-section .toggle-control:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
 /* Advanced Options Section */
 .advanced-options-section {
   padding: 1rem;
@@ -1494,10 +1567,24 @@ export default {
   margin-bottom: 1.5rem;
 }
 
-.toggle-list {
+.advanced-options-section .toggle-list {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0;
+}
+
+.advanced-options-section .toggle-control {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.advanced-options-section .toggle-control:first-child {
+  padding-top: 0;
+}
+
+.advanced-options-section .toggle-control:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
 }
 
 .full-parameters {
@@ -1509,7 +1596,6 @@ export default {
 .checkbox-group {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
 }
 
 .checkbox-item {
