@@ -14,70 +14,70 @@
 
         <div class="modal-body">
           <form @submit.prevent="submitRequest">
-            <!-- Prompt Section (Always Visible) -->
-            <div class="form-group">
-              <label for="prompt">Prompt *</label>
-              <textarea
-                id="prompt"
-                v-model="form.prompt"
-                placeholder="Describe the image you want to generate..."
-                rows="4"
-                required
-              ></textarea>
-            </div>
-
-            <div class="form-group">
-              <label for="negative_prompt">Negative Prompt</label>
-              <textarea
-                id="negative_prompt"
-                v-model="form.negativePrompt"
-                placeholder="Things to avoid in the image..."
-                rows="2"
-              ></textarea>
-            </div>
-
-            <!-- Number of Images (Always Visible) -->
-            <div class="form-group">
-              <label for="n">Images</label>
-              <div class="slider-group">
-                <input
-                  type="range"
-                  id="n"
-                  v-model.number="form.n"
-                  min="1"
-                  max="20"
-                  step="1"
-                />
-                <span class="range-value">{{ form.n }}</span>
+            <!-- Basic Settings Section (Always Visible) -->
+            <h4 class="section-title">Basic Settings</h4>
+            <div class="basic-settings-section">
+              <div class="form-group">
+                <label for="prompt">Prompt *</label>
+                <textarea
+                  id="prompt"
+                  v-model="form.prompt"
+                  placeholder="Describe the image you want to generate..."
+                  rows="4"
+                  required
+                ></textarea>
               </div>
-            </div>
 
-            <!-- Style Selection (Always Visible) -->
-            <div class="form-group">
-              <label>Style</label>
-              <div class="selector-button" @click="showStylePicker = true">
-                <span class="selector-value">{{ selectedStyleName }}</span>
-                <span class="selector-arrow">›</span>
+              <div class="form-group">
+                <label for="negative_prompt">Negative Prompt</label>
+                <textarea
+                  id="negative_prompt"
+                  v-model="form.negativePrompt"
+                  placeholder="Things to avoid in the image..."
+                  rows="2"
+                ></textarea>
               </div>
-            </div>
 
-            <!-- Apply Style Button (When Style is Selected) -->
-            <div v-if="selectedStyleName !== 'None'" class="style-actions">
-              <button
-                type="button"
-                @click="applyStyle"
-                class="btn btn-apply-style"
-              >
-                Apply Style
-              </button>
+              <div class="form-group">
+                <label for="n">Images</label>
+                <div class="slider-group">
+                  <input
+                    type="range"
+                    id="n"
+                    v-model.number="form.n"
+                    min="1"
+                    max="20"
+                    step="1"
+                  />
+                  <span class="range-value">{{ form.n }}</span>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label>Style</label>
+                <div class="selector-button" @click="showStylePicker = true">
+                  <span class="selector-value">{{ selectedStyleName }}</span>
+                  <span class="selector-arrow">›</span>
+                </div>
+              </div>
+
+              <!-- Apply Style Button (When Style is Selected) -->
+              <div v-if="selectedStyleName !== 'None'" class="style-actions">
+                <button
+                  type="button"
+                  @click="applyStyle"
+                  class="btn btn-apply-style"
+                >
+                  Apply Style
+                </button>
+              </div>
             </div>
 
             <!-- Full Parameters (Only Visible When NO Style is Selected) -->
             <div v-if="selectedStyleName === 'None'" class="full-parameters">
               <!-- Dimensions Section -->
+              <h4 class="section-title">Dimensions</h4>
               <div class="dimensions-section">
-                <h4>Dimensions</h4>
-
                 <div class="form-group">
                   <label for="width">Width</label>
                   <div class="slider-group">
@@ -135,9 +135,8 @@
               </div>
 
               <!-- Generation Settings Section -->
+              <h4 class="section-title">Generation Settings</h4>
               <div class="generation-settings-section">
-                <h4>Generation Settings</h4>
-
                 <div class="form-group">
                   <label>Model</label>
                   <div class="selector-button" @click="showModelPicker = true">
@@ -272,8 +271,9 @@
               </div>
 
               <!-- Face Fix Section -->
-              <div class="form-group face-fix-section">
-                <div class="face-fix-header">
+              <h4 class="section-title">Face Fix</h4>
+              <div class="face-fix-section">
+                <div class="form-group">
                   <label for="face_fix">Face Fix</label>
                   <select id="face_fix" v-model="form.faceFix">
                     <option value="none">None</option>
@@ -282,7 +282,7 @@
                   </select>
                 </div>
 
-                <div v-if="form.faceFix !== 'none'" class="face-fix-controls">
+                <div v-if="form.faceFix !== 'none'" class="form-group">
                   <label for="face_fix_strength">Strength</label>
                   <div class="slider-group">
                     <input
@@ -299,8 +299,8 @@
               </div>
 
               <!-- Upscalers Section -->
-              <div class="form-group">
-                <label>Upscalers</label>
+              <h4 class="section-title">Upscalers</h4>
+              <div class="upscalers-section">
                 <div class="checkbox-group">
                   <label class="checkbox-item">
                     <input type="checkbox" value="4x_AnimeSharp" v-model="form.upscalers" />
@@ -325,22 +325,31 @@
                 </div>
               </div>
 
-              <!-- Advanced Toggles -->
-              <div class="toggles-section">
-                <h4>Advanced Options</h4>
-                <div class="toggle-grid">
-                  <label class="toggle">
-                    <input type="checkbox" v-model="form.tiling" />
+              <!-- Advanced Options Section -->
+              <h4 class="section-title">Advanced Options</h4>
+              <div class="advanced-options-section">
+                <div class="toggle-list">
+                  <div class="toggle-control">
                     <span>Tiling</span>
-                  </label>
-                  <label class="toggle">
-                    <input type="checkbox" v-model="form.transparent" />
+                    <label class="toggle-switch">
+                      <input type="checkbox" v-model="form.tiling" />
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                  <div class="toggle-control">
                     <span>Transparent Background</span>
-                  </label>
-                  <label class="toggle">
-                    <input type="checkbox" v-model="form.stripBackground" />
+                    <label class="toggle-switch">
+                      <input type="checkbox" v-model="form.transparent" />
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                  <div class="toggle-control">
                     <span>Strip Background</span>
-                  </label>
+                    <label class="toggle-switch">
+                      <input type="checkbox" v-model="form.stripBackground" />
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1034,40 +1043,12 @@ export default {
   z-index: 1;
 }
 
-.hires-fix-section {
-  background: rgba(255, 255, 255, 0.05);
-  padding: 1rem;
-  border-radius: 8px;
-  margin-bottom: 1.5rem;
-}
-
-.hires-fix-header {
-  display: flex;
-  align-items: center;
-  margin-bottom: 0.5rem;
-}
-
-.hires-fix-controls {
-  margin-top: 1rem;
-  padding-left: 0.5rem;
-}
-
+/* Face Fix Section */
 .face-fix-section {
-  background: rgba(255, 255, 255, 0.05);
   padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
   border-radius: 8px;
   margin-bottom: 1.5rem;
-}
-
-.face-fix-header {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.face-fix-controls {
-  margin-top: 1rem;
-  padding-left: 0.5rem;
 }
 
 .modal-header h2 {
@@ -1310,21 +1291,34 @@ export default {
   background: #cc2e24;
 }
 
-/* Generation Settings Section */
-.generation-settings-section {
-  margin: 1.5rem 0;
-  padding: 1rem;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
-}
-
-.generation-settings-section h4 {
-  margin: 0 0 1rem 0;
+/* Section Title (outside boxes) */
+.section-title {
+  margin: 1.5rem 0 0.5rem 0;
   font-size: 0.9rem;
   font-weight: 600;
   text-transform: uppercase;
   color: #999;
   letter-spacing: 0.05em;
+}
+
+.section-title:first-child {
+  margin-top: 0;
+}
+
+/* Basic Settings Section */
+.basic-settings-section {
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+}
+
+/* Generation Settings Section */
+.generation-settings-section {
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
 }
 
 /* Seed Control Group */
@@ -1386,19 +1380,10 @@ export default {
 
 /* Dimensions Section */
 .dimensions-section {
-  margin: 1.5rem 0;
   padding: 1rem;
   background: rgba(255, 255, 255, 0.05);
   border-radius: 8px;
-}
-
-.dimensions-section h4 {
-  margin: 0 0 1rem 0;
-  font-size: 0.9rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  color: #999;
-  letter-spacing: 0.05em;
+  margin-bottom: 1.5rem;
 }
 
 /* Aspect Ratio Control */
@@ -1493,51 +1478,26 @@ export default {
   font-weight: bold;
 }
 
-.toggles-section {
-  margin: 1.5rem 0;
+/* Upscalers Section */
+.upscalers-section {
   padding: 1rem;
-  background: #0f0f0f;
-  border: 1px solid #333;
-  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
 }
 
-.toggles-section h4 {
-  margin: 0 0 1rem 0;
-  font-size: 0.9rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  color: #999;
-  letter-spacing: 0.05em;
+/* Advanced Options Section */
+.advanced-options-section {
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
 }
 
-.toggle-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.75rem;
-}
-
-.toggle {
+.toggle-list {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 4px;
-  transition: background 0.2s;
-}
-
-.toggle:hover {
-  background: #252525;
-}
-
-.toggle input[type="checkbox"] {
-  width: auto;
-  cursor: pointer;
-}
-
-.toggle span {
-  color: #fff;
-  font-size: 0.9rem;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .full-parameters {
@@ -1549,65 +1509,26 @@ export default {
 .checkbox-group {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  background: #0f0f0f;
-  border: 1px solid #333;
-  border-radius: 6px;
+  gap: 0.75rem;
 }
 
 .checkbox-item {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
   cursor: pointer;
-  padding: 0.25rem;
 }
 
 .checkbox-item input[type="checkbox"] {
-  width: auto;
+  width: 18px;
+  height: 18px;
   cursor: pointer;
+  accent-color: #007AFF;
 }
 
 .checkbox-item span {
   color: #fff;
   font-size: 0.9rem;
-}
-
-.seed-control {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  width: 100%;
-}
-
-.seed-toggle {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 4px;
-  transition: background 0.2s;
-  white-space: nowrap;
-}
-
-.seed-toggle:hover {
-  background: #252525;
-}
-
-.seed-toggle input[type="checkbox"] {
-  width: auto;
-  cursor: pointer;
-}
-
-.seed-toggle span {
-  color: #fff;
-  font-size: 0.9rem;
-}
-
-.seed-input {
-  flex: 1;
 }
 
 .kudos-estimate {
