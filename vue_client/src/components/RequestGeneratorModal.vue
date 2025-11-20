@@ -383,18 +383,11 @@
         <div class="modal-footer">
           <!-- Kudos Estimate -->
           <div class="kudos-estimate" v-if="kudosEstimate !== null">
-            <span class="kudos-label">Estimated Cost:</span>
-            <span class="kudos-value">{{ kudosEstimate.toLocaleString() }} kudos</span>
-            <button type="button" @click="estimateKudos" class="btn-refresh" :disabled="estimating">
-              ↻
-            </button>
+            <span class="kudos-label">Kudos Cost: ~{{ kudosEstimate.toLocaleString() }} kudos for {{ form.n.toLocaleString() }} images, ~{{ (kudosEstimate / form.n).toFixed(0).toLocaleString() }} per image</span>
           </div>
 
           <!-- Form Actions -->
           <div class="form-actions">
-            <button type="button" @click="$emit('close')" class="btn btn-cancel">
-              Cancel
-            </button>
             <button type="submit" @click="submitRequest" class="btn btn-submit" :disabled="submitting">
               {{ submitting ? 'Submitting...' : 'Generate' }}
             </button>
@@ -1118,11 +1111,6 @@ export default {
   margin-bottom: 1.5rem;
 }
 
-.face-fix-section .form-group {
-  padding-bottom: 1rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
 .face-fix-section .form-group:last-child {
   border-bottom: none;
   padding-bottom: 0;
@@ -1187,7 +1175,10 @@ export default {
 
 .modal-footer {
   flex-shrink: 0;
-  padding: 1.5rem;
+  padding-bottom: 1.5rem;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+  padding-top: 1rem;
   border-top: 1px solid #333;
   background: #1a1a1a;
 }
@@ -1704,24 +1695,14 @@ export default {
 .kudos-estimate {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.75rem;
-  padding: 1rem;
-  background: rgba(0, 122, 255, 0.1);
-  border: 1px solid rgba(0, 122, 255, 0.3);
-  border-radius: 6px;
   margin-bottom: 1rem;
 }
 
 .kudos-label {
   color: #999;
   font-size: 0.9rem;
-}
-
-.kudos-value {
-  color: #587297;
-  font-weight: 600;
-  font-size: 1.125rem;
-  flex: 1;
 }
 
 .btn-refresh {
