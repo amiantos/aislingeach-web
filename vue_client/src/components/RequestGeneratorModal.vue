@@ -49,6 +49,7 @@
                     type="range"
                     id="n"
                     v-model.number="form.n"
+                    :style="{ background: getSliderBackground(form.n, 1, 20) }"
                     min="1"
                     max="20"
                     step="1"
@@ -99,6 +100,7 @@
                       type="range"
                       id="width"
                       v-model.number="form.width"
+                      :style="{ background: getSliderBackground(form.width, 64, 3072) }"
                       @input="onDimensionChange('width')"
                       min="64"
                       max="3072"
@@ -115,6 +117,7 @@
                       type="range"
                       id="height"
                       v-model.number="form.height"
+                      :style="{ background: getSliderBackground(form.height, 64, 3072) }"
                       @input="onDimensionChange('height')"
                       min="64"
                       max="3072"
@@ -184,6 +187,7 @@
                       type="range"
                       id="steps"
                       v-model.number="form.steps"
+                      :style="{ background: getSliderBackground(form.steps, 1, 150) }"
                       min="1"
                       max="150"
                       step="1"
@@ -199,6 +203,7 @@
                       type="range"
                       id="cfg_scale"
                       v-model.number="form.cfgScale"
+                      :style="{ background: getSliderBackground(form.cfgScale, 1, 30) }"
                       min="1"
                       max="30"
                       step="0.5"
@@ -214,6 +219,7 @@
                       type="range"
                       id="clip_skip"
                       v-model.number="form.clipSkip"
+                      :style="{ background: getSliderBackground(form.clipSkip, 1, 12) }"
                       min="1"
                       max="12"
                       step="1"
@@ -267,6 +273,7 @@
                           type="range"
                           id="hires_denoise"
                           v-model.number="form.hiresFixDenoisingStrength"
+                          :style="{ background: getSliderBackground(form.hiresFixDenoisingStrength, 0, 1) }"
                           min="0"
                           max="1"
                           step="0.05"
@@ -297,6 +304,7 @@
                       type="range"
                       id="face_fix_strength"
                       v-model.number="form.faceFixStrength"
+                      :style="{ background: getSliderBackground(form.faceFixStrength, 0, 1) }"
                       min="0"
                       max="1"
                       step="0.05"
@@ -745,6 +753,12 @@ export default {
       }
     }
 
+    // Calculate slider fill percentage for gradient background
+    const getSliderBackground = (value, min, max) => {
+      const percentage = ((value - min) / (max - min)) * 100
+      return `linear-gradient(to right, #587297 0%, #587297 ${percentage}%, #333 ${percentage}%, #333 100%)`
+    }
+
     // Auto-expand textarea to fit content
     const autoExpand = (event) => {
       const textarea = event.target
@@ -1051,7 +1065,8 @@ export default {
       estimateKudos,
       loadSettings,
       loadRandomPreset,
-      fetchModels
+      fetchModels,
+      getSliderBackground
     }
   }
 }
@@ -1257,20 +1272,22 @@ export default {
 .slider-group input[type="range"] {
   flex: 1;
   width: auto;
+  height: 5px;
   -webkit-appearance: none;
   appearance: none;
-  background: transparent;
+  background: #333;
   border: none;
   outline: none;
   cursor: pointer;
   padding: 0;
+  border-radius: 2px;
 }
 
 /* WebKit track */
 .slider-group input[type="range"]::-webkit-slider-runnable-track {
   width: 100%;
   height: 5px;
-  background: #333;
+  background: transparent;
   border-radius: 2px;
 }
 
@@ -1296,7 +1313,7 @@ export default {
 .slider-group input[type="range"]::-moz-range-track {
   width: 100%;
   height: 5px;
-  background: #333;
+  background: transparent;
   border-radius: 2px;
   border: none;
 }
@@ -1305,7 +1322,7 @@ export default {
 .slider-group input[type="range"]::-moz-range-thumb {
   width: 24px;
   height: 24px;
-  background: #587297;
+  background: #eee;
   border: none;
   border-radius: 50%;
   cursor: pointer;
