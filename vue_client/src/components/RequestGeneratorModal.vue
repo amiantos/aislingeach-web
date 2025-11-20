@@ -140,10 +140,10 @@
 
                   <button
                     type="button"
-                    class="btn-swap-dimensions"
+                    class="btn btn-swap-dimensions"
                     @click="swapDimensions"
                   >
-                    <span class="swap-icon">⇄</span> Swap Dimensions
+                    <i class="fa-solid fa-arrows-rotate"></i> Swap Dimensions
                   </button>
                 </div>
               </div>
@@ -389,7 +389,7 @@
           <!-- Form Actions -->
           <div class="form-actions">
             <button type="submit" @click="submitRequest" class="btn btn-submit" :disabled="submitting">
-              {{ submitting ? 'Submitting...' : 'Generate' }}
+              <i class="fa-regular fa-paper-plane paper-plane-icon"></i> {{ submitting ? 'Submitting...' : 'Generate' }}
             </button>
           </div>
         </div>
@@ -1385,12 +1385,12 @@ export default {
 }
 
 .btn-remove-style {
-  background: #ff3b30;
+  background: #587297;
   color: white;
 }
 
 .btn-remove-style:hover {
-  background: #cc2e24;
+  background: #6989b5;
 }
 
 .style-info-text {
@@ -1611,14 +1611,11 @@ export default {
 /* Swap Dimensions Button */
 .btn-swap-dimensions {
   width: 100%;
-  padding: 0.75rem;
+  padding: 0.75rem 1.5rem;
   margin-top: 1rem;
   background: #587297;
   border: none;
-  border-radius: 8px;
   color: white;
-  font-size: 0.95rem;
-  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
   display: flex;
@@ -1633,11 +1630,6 @@ export default {
 
 .btn-swap-dimensions:active {
   transform: scale(0.98);
-}
-
-.swap-icon {
-  font-size: 1.2rem;
-  font-weight: bold;
 }
 
 /* Upscalers Section */
@@ -1734,7 +1726,7 @@ export default {
   flex: 1;
   padding: 0.75rem 1.5rem;
   border: none;
-  border-radius: 6px;
+  border-radius: 100px;
   font-size: 1rem;
   font-weight: 500;
   cursor: pointer;
@@ -1755,6 +1747,15 @@ export default {
 .btn-submit {
   background: #587297;
   color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.paper-plane-icon {
+  font-size: 1.2rem;
+  font-weight: bold;
 }
 
 .btn-submit:hover:not(:disabled) {
