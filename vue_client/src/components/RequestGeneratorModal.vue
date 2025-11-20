@@ -389,9 +389,10 @@
 
         <!-- Modal Footer (Static at bottom) -->
         <div class="modal-footer">
-          <!-- Kudos Estimate -->
-          <div class="kudos-estimate" v-if="kudosEstimate !== null">
-            <span class="kudos-label">Kudos Cost: ~{{ kudosEstimate.toLocaleString() }} kudos for {{ form.n.toLocaleString() }} images, ~{{ (kudosEstimate / form.n).toFixed(0).toLocaleString() }} per image</span>
+          <!-- Kudos Estimate or Error -->
+          <div class="kudos-estimate" v-if="kudosEstimate !== null || estimateError !== null">
+            <span v-if="kudosEstimate !== null" class="kudos-label">Kudos Cost: ~{{ kudosEstimate.toLocaleString() }} kudos for {{ form.n.toLocaleString() }} images, ~{{ (kudosEstimate / form.n).toFixed(0).toLocaleString() }} per image</span>
+            <span v-else-if="estimateError !== null" class="kudos-error">{{ estimateError }}</span>
           </div>
 
           <!-- Form Actions -->
@@ -489,7 +490,7 @@ export default {
 
     // Use composables
     const { models, fetchModels, getMostPopularModel } = useModelCache()
-    const { kudosEstimate, estimating, estimateKudos: estimateKudosComposable } = useKudosEstimation()
+    const { kudosEstimate, estimating, estimateError, estimateKudos: estimateKudosComposable } = useKudosEstimation()
 
     // Load worker preferences from settings store
     settingsStore.loadWorkerPreferences()
@@ -1047,6 +1048,7 @@ export default {
       submitting,
       estimating,
       kudosEstimate,
+      estimateError,
       showModelPicker,
       showStylePicker,
       aspectLocked,
@@ -1710,6 +1712,12 @@ export default {
 .kudos-label {
   color: #999;
   font-size: 0.9rem;
+}
+
+.kudos-error {
+  color: #ff6b6b;
+  font-size: 0.9rem;
+  font-weight: 500;
 }
 
 .btn-refresh {

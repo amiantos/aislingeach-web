@@ -8,6 +8,7 @@ import { imagesApi } from '../api/client.js'
 export function useKudosEstimation() {
   const kudosEstimate = ref(null)
   const estimating = ref(false)
+  const estimateError = ref(null)
 
   /**
    * Estimate kudos cost for a request
@@ -39,10 +40,21 @@ export function useKudosEstimation() {
 
       const response = await imagesApi.estimate(estimateParams)
       kudosEstimate.value = response.data.kudos
+      estimateError.value = null // Clear any previous error
       return response.data.kudos
     } catch (error) {
       console.error('Error estimating kudos:', error)
       kudosEstimate.value = null
+
+      // Capture error message from API response
+      if (error.response?.data?.message) {
+        estimateError.value = error.response.data.message
+      } else if (error.message) {
+        estimateError.value = error.message
+      } else {
+        estimateError.value = 'Failed to estimate kudos cost'
+      }
+
       return null
     } finally {
       estimating.value = false
@@ -50,10 +62,11 @@ export function useKudosEstimation() {
   }
 
   /**
-   * Clear the current kudos estimate
+   * Clear the current kudos estimate and error
    */
   const clearEstimate = () => {
     kudosEstimate.value = null
+    estimateError.value = null
   }
 
   /**
@@ -67,6 +80,7 @@ export function useKudosEstimation() {
   return {
     kudosEstimate,
     estimating,
+    estimateError,
     estimateKudos,
     clearEstimate,
     hasEstimate

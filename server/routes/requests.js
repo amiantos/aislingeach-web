@@ -183,7 +183,21 @@ router.post('/estimate', async (req, res) => {
     });
   } catch (error) {
     console.error('Error estimating kudos cost:', error);
-    res.status(500).json({ error: 'Failed to estimate kudos cost' });
+
+    // Forward the actual error from AI Horde API if available
+    if (error.response?.data) {
+      const statusCode = error.response.status || 500;
+      const errorMessage = error.response.data.message || error.response.data.error || 'Failed to estimate kudos cost';
+      const errorCode = error.response.data.rc;
+
+      return res.status(statusCode).json({
+        message: errorMessage,
+        rc: errorCode
+      });
+    }
+
+    // Generic server error if not an API error
+    res.status(500).json({ message: 'Failed to estimate kudos cost' });
   }
 });
 
