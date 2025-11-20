@@ -7,12 +7,13 @@
     <!-- Preview Image -->
     <div class="lora-image-container">
       <img
-        v-if="previewImage"
-        :src="previewImage.url"
+        v-if="currentImage"
+        :src="currentImage.url"
         :alt="lora.name"
         :class="{'nsfw-blur': shouldBlur}"
         class="lora-image"
         loading="lazy"
+        @error="onImageError"
       />
       <div v-else class="lora-image-placeholder">
         <span>No Preview</span>
@@ -60,18 +61,40 @@ export default {
     }
   },
   emits: ['click', 'toggleFavorite'],
+  data() {
+    return {
+      currentImageIndex: 0,
+      failedIndices: []
+    }
+  },
   computed: {
-    previewImage() {
+    availableImages() {
       if (!this.lora.modelVersions || this.lora.modelVersions.length === 0) {
-        return null
+        return []
       }
 
       const firstVersion = this.lora.modelVersions[0]
       if (!firstVersion.images || firstVersion.images.length === 0) {
-        return null
+        return []
       }
 
-      return firstVersion.images[0]
+      return firstVersion.images
+    },
+
+    currentImage() {
+      const images = this.availableImages
+      if (images.length === 0) return null
+
+      // Try to find a non-failed image starting from currentImageIndex
+      for (let i = 0; i < images.length; i++) {
+        const idx = (this.currentImageIndex + i) % images.length
+        if (!this.failedIndices.includes(idx)) {
+          return images[idx]
+        }
+      }
+
+      // All images failed, return null to show placeholder
+      return null
     },
 
     baseModel() {
@@ -84,15 +107,34 @@ export default {
 
     shouldBlur() {
       if (this.nsfwEnabled) return false
-      if (!this.previewImage) return false
+      if (!this.currentImage) return false
 
-      return (this.previewImage.nsfwLevel || 0) >= 7
+      return (this.currentImage.nsfwLevel || 0) >= 7
     },
 
     cardStyle() {
       // Maintain 4:5 aspect ratio
       return {
         aspectRatio: '4 / 5'
+      }
+    }
+  },
+  methods: {
+    onImageError() {
+      const images = this.availableImages
+      if (images.length === 0) return
+
+      // Mark current image as failed
+      if (!this.failedIndices.includes(this.currentImageIndex)) {
+        this.failedIndices.push(this.currentImageIndex)
+      }
+
+      // Try next image
+      this.currentImageIndex = (this.currentImageIndex + 1) % images.length
+
+      // If we've tried all images, give up
+      if (this.failedIndices.length >= images.length) {
+        console.warn(`All preview images failed for LoRA: ${this.lora.name}`)
       }
     }
   }
