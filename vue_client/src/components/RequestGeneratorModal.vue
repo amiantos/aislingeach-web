@@ -442,6 +442,7 @@ import StylePicker from './StylePicker.vue'
 import LoraPicker from './LoraPicker.vue'
 import { getLoraById } from '../api/civitai'
 import { SavedLora } from '../models/Lora'
+import { useLoraRecent } from '../composables/useLoraCache'
 
 export default {
   name: 'RequestGeneratorModal',
@@ -500,6 +501,7 @@ export default {
     // Use composables
     const { models, fetchModels, getMostPopularModel } = useModelCache()
     const { kudosEstimate, estimating, estimateError, estimateKudos: estimateKudosComposable } = useKudosEstimation()
+    const { addToRecent } = useLoraRecent()
 
     // Load worker preferences from settings store
     settingsStore.loadWorkerPreferences()
@@ -572,39 +574,9 @@ export default {
     }
 
     // LoRA handlers
-    const onLorasUpdate = async (loras) => {
+    const onLorasUpdate = (loras) => {
       form.loras = loras
       estimateKudos()
-
-      // Update recent loras
-      try {
-        for (const lora of loras) {
-          const settings = await settingsApi.get()
-          let recent = []
-          if (settings.data && settings.data.recent_loras) {
-            recent = JSON.parse(settings.data.recent_loras)
-          }
-
-          // Remove if already exists
-          recent = recent.filter(r => r.versionId !== lora.versionId)
-
-          // Add to front
-          recent.unshift({
-            id: lora.id,
-            versionId: lora.versionId,
-            model: lora,
-            timestamp: Date.now()
-          })
-
-          // Keep last 20
-          recent = recent.slice(0, 20)
-
-          // Save
-          await settingsApi.update({ recentLoras: recent })
-        }
-      } catch (error) {
-        console.error('Failed to update recent LoRAs:', error)
-      }
     }
 
     const removeLora = (index) => {
@@ -1071,6 +1043,17 @@ export default {
 
         // Save settings for next time
         await saveLastUsedSettings()
+
+        // Add LoRAs to recent (after successful submission)
+        if (form.loras && form.loras.length > 0) {
+          try {
+            for (const lora of form.loras) {
+              await addToRecent(lora)
+            }
+          } catch (error) {
+            console.error('Failed to update recent LoRAs:', error)
+          }
+        }
 
         emit('submit')
       } catch (error) {
