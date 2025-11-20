@@ -570,12 +570,12 @@ export default {
 }
 
 .btn-download {
-  background: #007AFF;
+  background: #587297;
   color: white;
 }
 
 .btn-download:hover {
-  background: #0051D5;
+  background: #6989b5;
 }
 
 .btn-delete {
@@ -676,7 +676,7 @@ export default {
 }
 
 .btn-copy {
-  background: #007AFF;
+  background: #587297;
   color: white;
   border: none;
   padding: 0.5rem 1rem;
@@ -691,7 +691,7 @@ export default {
 }
 
 .btn-copy:hover {
-  background: #0051D5;
+  background: #6989b5;
 }
 
 .btn-copy i.fa-check {

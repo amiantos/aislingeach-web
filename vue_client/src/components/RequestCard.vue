@@ -200,7 +200,7 @@ export default {
   width: 30px;
   height: 30px;
   border: 3px solid #333;
-  border-top-color: #007AFF;
+  border-top-color: #587297;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -306,12 +306,12 @@ export default {
 }
 
 .btn-primary {
-  background: #007AFF;
+  background: #587297;
   color: white;
 }
 
 .btn-primary:hover {
-  background: #0051D5;
+  background: #6989b5;
 }
 
 .btn-delete {

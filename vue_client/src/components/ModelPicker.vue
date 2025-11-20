@@ -233,7 +233,7 @@ export default {
 .btn-back {
   background: transparent;
   border: none;
-  color: #007AFF;
+  color: #587297;
   font-size: 1rem;
   cursor: pointer;
   display: flex;
@@ -260,7 +260,7 @@ export default {
 .btn-refresh {
   background: transparent;
   border: 1px solid #333;
-  color: #007AFF;
+  color: #587297;
   font-size: 1.25rem;
   cursor: pointer;
   padding: 0.5rem 0.75rem;
@@ -271,7 +271,7 @@ export default {
 
 .btn-refresh:hover:not(:disabled) {
   background: #2a2a2a;
-  border-color: #007AFF;
+  border-color: #587297;
 }
 
 .btn-refresh:disabled {
@@ -296,7 +296,7 @@ export default {
 
 .search-input:focus {
   outline: none;
-  border-color: #007AFF;
+  border-color: #587297;
 }
 
 .model-list {
@@ -342,7 +342,7 @@ export default {
 
 .model-item.selected {
   background: rgba(0, 122, 255, 0.1);
-  border-color: #007AFF;
+  border-color: #587297;
 }
 
 .model-header {

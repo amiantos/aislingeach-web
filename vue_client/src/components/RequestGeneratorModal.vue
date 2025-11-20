@@ -1159,7 +1159,7 @@ export default {
 .btn-reset:hover {
   background: #2a2a2a;
   color: #fff;
-  border-color: #007AFF;
+  border-color: #587297;
 }
 
 .btn-close {
@@ -1243,7 +1243,7 @@ export default {
 .form-group textarea:focus,
 .form-group select:focus {
   outline: none;
-  border-color: #007AFF;
+  border-color: #587297;
 }
 
 .form-row {
@@ -1289,7 +1289,7 @@ export default {
   appearance: none;
   width: 24px;
   height: 24px;
-  background: #007AFF;
+  background: #587297;
   border-radius: 50%;
   cursor: pointer;
   margin-top: -10.5px;
@@ -1297,7 +1297,7 @@ export default {
 }
 
 .slider-group input[type="range"]::-webkit-slider-thumb:hover {
-  background: #0051D5;
+  background: #6989b5;
   transform: scale(1.1);
 }
 
@@ -1314,7 +1314,7 @@ export default {
 .slider-group input[type="range"]::-moz-range-thumb {
   width: 24px;
   height: 24px;
-  background: #007AFF;
+  background: #587297;
   border: none;
   border-radius: 50%;
   cursor: pointer;
@@ -1322,7 +1322,7 @@ export default {
 }
 
 .slider-group input[type="range"]::-moz-range-thumb:hover {
-  background: #0051D5;
+  background: #6989b5;
   transform: scale(1.1);
 }
 
@@ -1385,12 +1385,12 @@ export default {
 }
 
 .btn-apply-style {
-  background: #007AFF;
+  background: #587297;
   color: white;
 }
 
 .btn-apply-style:hover {
-  background: #0051D5;
+  background: #6989b5;
 }
 
 .btn-remove-style {
@@ -1493,7 +1493,7 @@ export default {
 
 .seed-input:focus {
   outline: none;
-  border-color: #007AFF;
+  border-color: #587297;
 }
 
 .seed-randomize {
@@ -1622,7 +1622,7 @@ export default {
   width: 100%;
   padding: 0.75rem;
   margin-top: 1rem;
-  background: #007AFF;
+  background: #587297;
   border: none;
   border-radius: 8px;
   color: white;
@@ -1637,7 +1637,7 @@ export default {
 }
 
 .btn-swap-dimensions:hover {
-  background: #0051D5;
+  background: #6989b5;
 }
 
 .btn-swap-dimensions:active {
@@ -1693,7 +1693,7 @@ export default {
   width: 18px;
   height: 18px;
   cursor: pointer;
-  accent-color: #007AFF;
+  accent-color: #587297;
 }
 
 .checkbox-item span {
@@ -1718,7 +1718,7 @@ export default {
 }
 
 .kudos-value {
-  color: #007AFF;
+  color: #587297;
   font-weight: 600;
   font-size: 1.125rem;
   flex: 1;
@@ -1728,7 +1728,7 @@ export default {
   background: transparent;
   border: 1px solid rgba(0, 122, 255, 0.3);
   border-radius: 6px;
-  color: #007AFF;
+  color: #587297;
   font-size: 1.25rem;
   padding: 0.25rem 0.5rem;
   cursor: pointer;
@@ -1772,12 +1772,12 @@ export default {
 }
 
 .btn-submit {
-  background: #007AFF;
+  background: #587297;
   color: white;
 }
 
 .btn-submit:hover:not(:disabled) {
-  background: #0051D5;
+  background: #6989b5;
 }
 
 .btn-submit:disabled {

@@ -374,7 +374,7 @@ export default {
 .btn-back {
   background: transparent;
   border: none;
-  color: #007AFF;
+  color: #587297;
   font-size: 1rem;
   cursor: pointer;
   display: flex;
@@ -479,7 +479,7 @@ export default {
 
 .search-input:focus {
   outline: none;
-  border-color: #007AFF;
+  border-color: #587297;
 }
 
 .style-grid-container {
@@ -527,8 +527,8 @@ export default {
 }
 
 .style-card.selected {
-  border-color: #007AFF;
-  box-shadow: 0 0 0 1px #007AFF;
+  border-color: #587297;
+  box-shadow: 0 0 0 1px #587297;
 }
 
 .style-preview {

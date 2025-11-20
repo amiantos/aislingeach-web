@@ -1101,7 +1101,7 @@ export default {
 
 .search-input:focus {
   outline: none;
-  border-color: #007AFF;
+  border-color: #587297;
 }
 
 .search-input::placeholder {
@@ -1110,7 +1110,7 @@ export default {
 
 .btn-search {
   padding: 0.5rem 1rem;
-  background: #007AFF;
+  background: #587297;
   border: none;
   border-radius: 6px;
   color: white;
@@ -1122,7 +1122,7 @@ export default {
 }
 
 .btn-search:hover {
-  background: #0051D5;
+  background: #6989b5;
 }
 
 .btn-favorites-toggle {
@@ -1357,7 +1357,7 @@ export default {
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: #007AFF;
+  background: #587297;
   color: white;
   border: none;
   font-size: 2.5rem;
@@ -1383,7 +1383,7 @@ export default {
 }
 
 .fab:hover {
-  background: #0051D5;
+  background: #6989b5;
   transform: scale(1.05);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
 }

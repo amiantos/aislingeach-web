@@ -191,11 +191,11 @@ export default {
 }
 
 .btn-keep:hover {
-  border-color: #007AFF;
+  border-color: #587297;
 }
 
 .btn-keep:hover .btn-title {
-  color: #007AFF;
+  color: #587297;
 }
 
 .btn-cancel:hover {

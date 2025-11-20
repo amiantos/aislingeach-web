@@ -122,8 +122,8 @@
           <div v-if="settings.hasPinProtection" class="pin-status">
             <div class="status-indicator">
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <circle cx="10" cy="10" r="9" stroke="#007AFF" stroke-width="2"/>
-                <path d="M6 10l3 3 5-5" stroke="#007AFF" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="10" cy="10" r="9" stroke="#587297" stroke-width="2"/>
+                <path d="M6 10l3 3 5-5" stroke="#587297" stroke-width="2" stroke-linecap="round"/>
               </svg>
               <span>PIN protection is enabled</span>
             </div>
@@ -562,8 +562,8 @@ export default {
 .btn-back {
   padding: 0.75rem 1.5rem;
   background: transparent;
-  color: #007AFF;
-  border: 1px solid #007AFF;
+  color: #587297;
+  border: 1px solid #587297;
   border-radius: 6px;
   font-size: 1rem;
   font-weight: 500;
@@ -606,7 +606,7 @@ export default {
 }
 
 .help-text a {
-  color: #007AFF;
+  color: #587297;
   text-decoration: none;
 }
 
@@ -632,7 +632,7 @@ export default {
 
 .api-key-input:focus {
   outline: none;
-  border-color: #007AFF;
+  border-color: #587297;
 }
 
 .btn {
@@ -647,18 +647,18 @@ export default {
 }
 
 .btn-primary {
-  background: #007AFF;
+  background: #587297;
   color: white;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #0051D5;
+  background: #6989b5;
 }
 
 .btn-secondary {
   background: transparent;
-  color: #007AFF;
-  border: 1px solid #007AFF;
+  color: #587297;
+  border: 1px solid #587297;
 }
 
 .btn-secondary:hover:not(:disabled) {
@@ -706,7 +706,7 @@ export default {
 }
 
 .info-row .value.kudos {
-  color: #007AFF;
+  color: #587297;
   font-weight: 600;
 }
 
@@ -772,7 +772,7 @@ export default {
 .saving-indicator {
   text-align: center;
   padding: 0.75rem;
-  color: #007AFF;
+  color: #587297;
   font-size: 0.95rem;
   margin-top: 1rem;
 }
