@@ -225,6 +225,60 @@
                 </div>
               </div>
 
+              <!-- Face Fix Section -->
+              <div class="form-group face-fix-section">
+                <div class="face-fix-header">
+                  <label for="face_fix">Face Fix</label>
+                  <select id="face_fix" v-model="form.faceFix">
+                    <option value="none">None</option>
+                    <option value="GFPGAN">GFPGAN</option>
+                    <option value="CodeFormers">CodeFormers</option>
+                  </select>
+                </div>
+
+                <div v-if="form.faceFix !== 'none'" class="face-fix-controls">
+                  <label for="face_fix_strength">Strength</label>
+                  <div class="slider-group">
+                    <input
+                      type="range"
+                      id="face_fix_strength"
+                      v-model.number="form.faceFixStrength"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                    />
+                    <span class="range-value">{{ form.faceFixStrength }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Upscalers Section -->
+              <div class="form-group">
+                <label>Upscalers</label>
+                <div class="checkbox-group">
+                  <label class="checkbox-item">
+                    <input type="checkbox" value="4x_AnimeSharp" v-model="form.upscalers" />
+                    <span>4x AnimeSharp</span>
+                  </label>
+                  <label class="checkbox-item">
+                    <input type="checkbox" value="NMKD_Siax" v-model="form.upscalers" />
+                    <span>NMKD Siax</span>
+                  </label>
+                  <label class="checkbox-item">
+                    <input type="checkbox" value="RealESRGAN_x2plus" v-model="form.upscalers" />
+                    <span>RealESRGAN x2</span>
+                  </label>
+                  <label class="checkbox-item">
+                    <input type="checkbox" value="RealESRGAN_x4plus_anime_6B" v-model="form.upscalers" />
+                    <span>RealESRGAN x4 Anime</span>
+                  </label>
+                  <label class="checkbox-item">
+                    <input type="checkbox" value="RealESRGAN_x4plus" v-model="form.upscalers" />
+                    <span>RealESRGAN x4</span>
+                  </label>
+                </div>
+              </div>
+
               <!-- Advanced Toggles -->
               <div class="toggles-section">
                 <h4>Advanced Options</h4>
@@ -241,31 +295,8 @@
                     <input type="checkbox" v-model="form.transparent" />
                     <span>Transparent Background</span>
                   </label>
-                </div>
-              </div>
-
-              <!-- Post-Processing -->
-              <div class="form-group">
-                <label>Post-Processing</label>
-                <div class="checkbox-group">
-                  <label class="checkbox-item">
-                    <input type="checkbox" value="GFPGAN" v-model="form.postProcessing" />
-                    <span>GFPGAN (Face Fix)</span>
-                  </label>
-                  <label class="checkbox-item">
-                    <input type="checkbox" value="CodeFormers" v-model="form.postProcessing" />
-                    <span>CodeFormers (Face Fix)</span>
-                  </label>
-                  <label class="checkbox-item">
-                    <input type="checkbox" value="RealESRGAN_x2plus" v-model="form.postProcessing" />
-                    <span>RealESRGAN x2</span>
-                  </label>
-                  <label class="checkbox-item">
-                    <input type="checkbox" value="RealESRGAN_x4plus" v-model="form.postProcessing" />
-                    <span>RealESRGAN x4</span>
-                  </label>
-                  <label class="checkbox-item">
-                    <input type="checkbox" value="strip_background" v-model="form.postProcessing" />
+                  <label class="toggle">
+                    <input type="checkbox" v-model="form.stripBackground" />
                     <span>Strip Background</span>
                   </label>
                 </div>
@@ -374,7 +405,10 @@ export default {
       hiresFixDenoisingStrength: 0.65,
       tiling: false,
       transparent: false,
-      postProcessing: [],
+      faceFix: 'none',
+      faceFixStrength: 0.5,
+      upscalers: [],
+      stripBackground: false,
       loras: []
     })
 
@@ -486,7 +520,36 @@ export default {
         form.n = params.n !== undefined ? params.n : 1
         form.tiling = params.tiling !== undefined ? params.tiling : false
         form.loras = params.loras ? [...params.loras] : []
-        form.postProcessing = params.post_processing ? [...params.post_processing] : []
+
+        // Load new post-processing structure
+        // Parse post_processing array to extract face fixer, upscalers, and strip_background
+        if (params.post_processing && Array.isArray(params.post_processing)) {
+          const pp = params.post_processing
+
+          // Check for face fixers
+          if (pp.includes('GFPGAN')) {
+            form.faceFix = 'GFPGAN'
+          } else if (pp.includes('CodeFormers')) {
+            form.faceFix = 'CodeFormers'
+          } else {
+            form.faceFix = 'none'
+          }
+
+          // Load face fixer strength
+          form.faceFixStrength = params.facefixer_strength !== undefined ? params.facefixer_strength : 0.5
+
+          // Check for upscalers
+          const upscalerOptions = ['4x_AnimeSharp', 'NMKD_Siax', 'RealESRGAN_x2plus', 'RealESRGAN_x4plus_anime_6B', 'RealESRGAN_x4plus']
+          form.upscalers = pp.filter(item => upscalerOptions.includes(item))
+
+          // Check for strip_background
+          form.stripBackground = pp.includes('strip_background')
+        } else {
+          form.faceFix = 'none'
+          form.faceFixStrength = 0.5
+          form.upscalers = []
+          form.stripBackground = false
+        }
 
         // Load seed if requested and available
         if (includeSeed && params.seed !== undefined && params.seed !== null && params.seed !== '') {
@@ -558,8 +621,11 @@ export default {
         form.loras = []
       }
 
-      // Clear post-processing when style is applied
-      form.postProcessing = []
+      // Clear post-processing options when style is applied
+      form.faceFix = 'none'
+      form.faceFixStrength = 0.5
+      form.upscalers = []
+      form.stripBackground = false
 
       // Deselect the style (set back to None)
       selectedStyleName.value = 'None'
@@ -688,15 +754,32 @@ export default {
           params.params.seed = form.seed
         }
 
-        // Add post-processing if any
-        if (form.postProcessing.length > 0) {
-          // Ensure strip_background is always last
-          let processedPP = [...form.postProcessing]
-          if (processedPP.includes('strip_background')) {
-            processedPP = processedPP.filter(p => p !== 'strip_background')
-            processedPP.push('strip_background')
-          }
-          params.params.post_processing = processedPP
+        // Build post-processing array in correct order:
+        // 1. Face fixer (if selected)
+        // 2. Upscalers (all selected)
+        // 3. Strip background (if enabled, must be last)
+        const postProcessing = []
+
+        // Add face fixer first
+        if (form.faceFix !== 'none') {
+          postProcessing.push(form.faceFix)
+          // Add face fixer strength parameter
+          params.params.facefixer_strength = form.faceFixStrength
+        }
+
+        // Add upscalers
+        if (form.upscalers && form.upscalers.length > 0) {
+          postProcessing.push(...form.upscalers)
+        }
+
+        // Add strip_background last
+        if (form.stripBackground) {
+          postProcessing.push('strip_background')
+        }
+
+        // Only add post_processing if there's something to process
+        if (postProcessing.length > 0) {
+          params.params.post_processing = postProcessing
         }
 
         // Add loras if any
@@ -869,6 +952,24 @@ export default {
 }
 
 .hires-fix-controls {
+  margin-top: 1rem;
+  padding-left: 0.5rem;
+}
+
+.face-fix-section {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+}
+
+.face-fix-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.face-fix-controls {
   margin-top: 1rem;
   padding-left: 0.5rem;
 }
