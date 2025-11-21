@@ -556,6 +556,20 @@ export default {
     const saveLastUsedSettings = async () => {
       try {
         const settingsToSave = { ...form }
+
+        // Ensure LoRAs are properly serialized
+        // Convert SavedLora instances to plain objects for JSON storage
+        if (settingsToSave.loras && Array.isArray(settingsToSave.loras)) {
+          settingsToSave.loras = settingsToSave.loras.map(lora => {
+            // If it's a SavedLora instance, convert to plain object
+            if (lora.toHordeFormat && typeof lora.toHordeFormat === 'function') {
+              // Serialize all properties, not just the minimal format
+              return { ...lora }
+            }
+            return lora
+          })
+        }
+
         // Note: LoRAs are now saved in last used settings
         // (Previously removed because they were style-specific, but users want them persisted)
         // Don't save worker preferences (they're now stored separately in settings)
