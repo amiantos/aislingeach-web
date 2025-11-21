@@ -298,20 +298,89 @@
                     <span class="selector-arrow">›</span>
                   </div>
 
-                  <div v-if="form.loras.length > 0" class="loras-summary">
+                  <div v-if="form.loras.length > 0" class="loras-list">
                     <div
                       v-for="(lora, idx) in form.loras"
                       :key="`lora-${idx}`"
-                      class="lora-chip"
+                      class="lora-card"
                     >
-                      <span class="lora-name">{{ lora.name }}</span>
-                      <span class="lora-strength">M:{{ lora.strength }} C:{{ lora.clip }}</span>
-                      <button
-                        type="button"
-                        @click.stop="removeLora(idx)"
-                        class="chip-remove"
-                        title="Remove LoRA"
-                      >×</button>
+                      <!-- Lora Header -->
+                      <div class="lora-header">
+                        <div class="lora-title-section">
+                          <span class="lora-title">{{ lora.name }}</span>
+                          <span v-if="currentLoraVersion(lora)" class="lora-version">{{ currentLoraVersion(lora).name }}</span>
+                        </div>
+                        <div class="lora-actions">
+                          <button
+                            type="button"
+                            class="btn-icon-small"
+                            @click="showLoraInfo(lora)"
+                            title="Show LoRA details"
+                            :disabled="lora.isArtbotManualEntry"
+                          >
+                            <i class="fas fa-info-circle"></i>
+                          </button>
+                          <button
+                            type="button"
+                            class="btn-icon-small btn-danger"
+                            @click="removeLora(idx)"
+                            title="Remove LoRA"
+                          >
+                            <i class="fas fa-trash"></i>
+                          </button>
+                        </div>
+                      </div>
+
+                      <!-- Model Strength -->
+                      <div class="lora-control-group">
+                        <label class="lora-control-label">Model Strength</label>
+                        <div class="slider-group">
+                          <input
+                            type="range"
+                            v-model.number="lora.strength"
+                            :style="{ background: getSliderBackground(lora.strength, -5, 5) }"
+                            @input="onLoraStrengthChange(idx)"
+                            min="-5"
+                            max="5"
+                            step="0.05"
+                          />
+                          <span class="range-value">{{ lora.strength }}</span>
+                        </div>
+                      </div>
+
+                      <!-- CLIP Strength -->
+                      <div class="lora-control-group">
+                        <label class="lora-control-label">CLIP Strength</label>
+                        <div class="slider-group">
+                          <input
+                            type="range"
+                            v-model.number="lora.clip"
+                            :style="{ background: getSliderBackground(lora.clip, -5, 5) }"
+                            @input="onLoraClipChange(idx)"
+                            min="-5"
+                            max="5"
+                            step="0.05"
+                          />
+                          <span class="range-value">{{ lora.clip }}</span>
+                        </div>
+                      </div>
+
+                      <!-- Trigger Words -->
+                      <div v-if="loraTrainedWords(lora).length > 0" class="lora-trigger-words">
+                        <span class="trigger-label">Trigger words:</span>
+                        <div class="trigger-chips">
+                          <button
+                            type="button"
+                            v-for="word in loraTrainedWords(lora)"
+                            :key="word"
+                            class="trigger-chip"
+                            @click="addTriggerWord(word)"
+                            :title="`Add '${word}' to prompt`"
+                          >
+                            {{ word }}
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -425,8 +494,15 @@
       <LoraPicker
         v-if="showLoraPicker"
         :currentLoras="form.loras"
-        @update="onLorasUpdate"
+        @add="addLora"
         @close="showLoraPicker = false"
+      />
+
+      <!-- LoRA Details Overlay -->
+      <LoraDetails
+        v-if="showLoraDetails"
+        :lora="selectedLoraForDetails"
+        @close="showLoraDetails = false"
       />
     </div>
   </div>
@@ -445,6 +521,7 @@ import axios from 'axios'
 import ModelPicker from './ModelPicker.vue'
 import StylePicker from './StylePicker.vue'
 import LoraPicker from './LoraPicker.vue'
+import LoraDetails from './LoraDetails.vue'
 import { getLoraById } from '../api/civitai'
 import { SavedLora } from '../models/Lora'
 import { useLoraRecent } from '../composables/useLoraCache'
@@ -455,7 +532,8 @@ export default {
   components: {
     ModelPicker,
     StylePicker,
-    LoraPicker
+    LoraPicker,
+    LoraDetails
   },
   props: {
     initialSettings: {
@@ -474,6 +552,8 @@ export default {
     const showModelPicker = ref(false)
     const showStylePicker = ref(false)
     const showLoraPicker = ref(false)
+    const showLoraDetails = ref(false)
+    const selectedLoraForDetails = ref(null)
     const aspectLocked = ref(false)
     const aspectRatio = ref(1)
     const selectedStyleName = ref('')
@@ -589,14 +669,79 @@ export default {
     }
 
     // LoRA handlers
-    const onLorasUpdate = (loras) => {
-      form.loras = loras
+    const addLora = (lora) => {
+      form.loras.push(lora)
       estimateKudos()
     }
 
     const removeLora = (index) => {
       form.loras.splice(index, 1)
       estimateKudos()
+    }
+
+    const onLoraStrengthChange = (index) => {
+      // Round to nearest 0.05
+      const rounded = Math.round(form.loras[index].strength * 20) / 20
+      form.loras[index].strength = parseFloat(rounded.toFixed(2))
+      estimateKudosDebounced()
+    }
+
+    const onLoraClipChange = (index) => {
+      // Round to nearest 0.05
+      const rounded = Math.round(form.loras[index].clip * 20) / 20
+      form.loras[index].clip = parseFloat(rounded.toFixed(2))
+      estimateKudosDebounced()
+    }
+
+    const currentLoraVersion = (lora) => {
+      if (!lora.modelVersions || lora.modelVersions.length === 0) {
+        return null
+      }
+      return lora.modelVersions.find(v => v.id === lora.versionId) || lora.modelVersions[0]
+    }
+
+    const loraTrainedWords = (lora) => {
+      const version = currentLoraVersion(lora)
+      if (!version || !version.trainedWords) {
+        return []
+      }
+      return version.trainedWords
+    }
+
+    const addTriggerWord = (word) => {
+      const textarea = document.getElementById('prompt')
+      if (!textarea) {
+        // Fallback: just append to the end
+        form.prompt = form.prompt ? `${form.prompt} ${word}` : word
+        return
+      }
+
+      const start = textarea.selectionStart
+      const end = textarea.selectionEnd
+      const currentPrompt = form.prompt || ''
+
+      // Insert the word at cursor position with appropriate spacing
+      const beforeCursor = currentPrompt.substring(0, start)
+      const afterCursor = currentPrompt.substring(end)
+
+      // Add space before word if needed
+      const needsSpaceBefore = beforeCursor.length > 0 && !beforeCursor.endsWith(' ')
+      const needsSpaceAfter = afterCursor.length > 0 && !afterCursor.startsWith(' ')
+
+      const wordToInsert = (needsSpaceBefore ? ' ' : '') + word + (needsSpaceAfter ? ' ' : '')
+      form.prompt = beforeCursor + wordToInsert + afterCursor
+
+      // Move cursor to after the inserted word
+      nextTick(() => {
+        const newCursorPos = start + wordToInsert.length
+        textarea.setSelectionRange(newCursorPos, newCursorPos)
+        textarea.focus()
+      })
+    }
+
+    const showLoraInfo = (lora) => {
+      selectedLoraForDetails.value = lora
+      showLoraDetails.value = true
     }
 
     // Helper to enrich minimal LoRA data with full CivitAI details
@@ -1242,6 +1387,8 @@ export default {
       showModelPicker,
       showStylePicker,
       showLoraPicker,
+      showLoraDetails,
+      selectedLoraForDetails,
       aspectLocked,
       aspectRatioText,
       selectedStyleName,
@@ -1249,8 +1396,14 @@ export default {
       submitRequest,
       onModelSelect,
       onStyleSelect,
-      onLorasUpdate,
+      addLora,
       removeLora,
+      onLoraStrengthChange,
+      onLoraClipChange,
+      currentLoraVersion,
+      loraTrainedWords,
+      addTriggerWord,
+      showLoraInfo,
       applyStyle,
       removeStyle,
       onAspectLockToggle,
@@ -1605,49 +1758,130 @@ export default {
   font-weight: 300;
 }
 
-/* LoRA Chips */
-.loras-summary {
+/* LoRA Controls List */
+.loras-list {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  flex-direction: column;
+  gap: 1rem;
   margin-top: 0.75rem;
 }
 
-.lora-chip {
+.lora-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 1rem;
+}
+
+.lora-header {
   display: flex;
-  align-items: center;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.lora-title-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.lora-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--color-text-primary);
+}
+
+.lora-version {
+  font-size: 0.85rem;
+  color: var(--color-text-tertiary);
+}
+
+.lora-actions {
+  display: flex;
   gap: 0.5rem;
-  background: #1d4d74;
+}
+
+.btn-icon-small {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 4px;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
-  color: white;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.85rem;
+  transition: all 0.2s;
 }
 
-.lora-name {
+.btn-icon-small:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--color-text-primary);
+}
+
+.btn-icon-small:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.btn-icon-small.btn-danger:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.2);
+  border-color: rgba(220, 38, 38, 0.3);
+  color: #dc2626;
+}
+
+.lora-control-group {
+  margin-bottom: 1rem;
+}
+
+.lora-control-group:last-of-type {
+  margin-bottom: 0;
+}
+
+.lora-control-label {
+  display: block;
+  font-size: 0.85rem;
   font-weight: 500;
+  color: var(--color-text-tertiary);
+  margin-bottom: 0.5rem;
 }
 
-.lora-strength {
-  opacity: 0.8;
-  font-size: 0.75rem;
-  font-family: monospace;
+.lora-trigger-words {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.chip-remove {
-  background: none;
+.trigger-label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--color-text-tertiary);
+  margin-bottom: 0.5rem;
+}
+
+.trigger-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.trigger-chip {
+  background: var(--color-primary);
   border: none;
+  border-radius: 4px;
   color: white;
   cursor: pointer;
-  font-size: 1.25rem;
-  line-height: 1;
-  padding: 0 0.25rem;
-  opacity: 0.7;
-  transition: opacity 0.2s;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  transition: all 0.2s;
 }
 
-.chip-remove:hover {
-  opacity: 1;
+.trigger-chip:hover {
+  background: var(--color-primary-hover);
 }
 
 .style-actions {

@@ -38,12 +38,6 @@
         Browse
       </button>
       <button
-        :class="['tab', { active: activeTab === 'selected' }]"
-        @click="activeTab = 'selected'"
-      >
-        Selected ({{ selectedLoras.length }})
-      </button>
-      <button
         :class="['tab', { active: activeTab === 'favorites' }]"
         @click="activeTab = 'favorites'"
       >
@@ -58,7 +52,7 @@
     </div>
 
     <!-- Search Bar (for Browse, Favorites, Recent) -->
-    <div v-if="activeTab !== 'selected'" class="search-container">
+    <div class="search-container">
       <input
         type="text"
         v-model="searchQuery"
@@ -123,32 +117,6 @@
         </div>
       </div>
 
-      <!-- Selected Tab -->
-      <div v-if="activeTab === 'selected'" class="tab-content">
-        <div v-if="selectedLoras.length === 0" class="empty-state">
-          <i class="fas fa-inbox"></i>
-          <p>No LoRAs selected</p>
-          <p class="empty-hint">Browse to add some!</p>
-        </div>
-
-        <div v-else-if="selectedLoras.length >= maxLoras" class="warning-banner">
-          <i class="fas fa-exclamation-circle"></i>
-          Maximum {{ maxLoras }} LoRAs reached
-        </div>
-
-        <div class="selected-list">
-          <LoraControls
-            v-for="(lora, index) in selectedLoras"
-            :key="`${lora.versionId}-${index}`"
-            :lora="lora"
-            @update="updateLora(index, $event)"
-            @remove="removeLora(index)"
-            @showInfo="showDetails"
-            @addTriggerWord="addTriggerWord"
-          />
-        </div>
-      </div>
-
       <!-- Favorites Tab -->
       <div v-if="activeTab === 'favorites'" class="tab-content">
         <div v-if="favoritesLoading" class="loading-state">
@@ -209,20 +177,12 @@
       @addLora="onAddLora"
       @toggleFavorite="toggleFavorite"
     />
-
-    <!-- Footer -->
-    <div class="picker-footer">
-      <button class="btn-apply" @click="applySelection">
-        Apply {{ selectedLoras.length }} LoRA{{ selectedLoras.length !== 1 ? 's' : '' }}
-      </button>
-    </div>
   </div>
 </template>
 
 <script>
 import { ref, computed, onMounted, watch } from 'vue'
 import LoraCard from './LoraCard.vue'
-import LoraControls from './LoraControls.vue'
 import LoraDetails from './LoraDetails.vue'
 import { useLoraCache, useLoraFavorites, useLoraRecent } from '../composables/useLoraCache'
 import { LORA_CONSTANTS } from '../models/Lora'
@@ -234,7 +194,6 @@ export default {
   name: 'LoraPicker',
   components: {
     LoraCard,
-    LoraControls,
     LoraDetails
   },
   props: {
@@ -243,7 +202,7 @@ export default {
       default: () => []
     }
   },
-  emits: ['close', 'update'],
+  emits: ['close', 'add', 'remove', 'updateLora'],
   setup(props, { emit }) {
     const settingsStore = useSettingsStore()
 
@@ -281,7 +240,6 @@ export default {
     const activeTab = ref('browse')
     const showFilter = ref(false)
     const searchQuery = ref('')
-    const selectedLoras = ref([...props.currentLoras])
     const selectedFilters = ref([...baseModelFilters.value])
     const showDetailsOverlay = ref(false)
     const selectedLoraForDetails = ref(null)
@@ -370,19 +328,16 @@ export default {
     }
 
     const onAddLora = async (lora) => {
-      if (selectedLoras.value.length >= maxLoras) {
+      if (props.currentLoras.length >= maxLoras) {
         alert(`Maximum ${maxLoras} LoRAs allowed`)
         return
       }
 
       // Check if already added (by versionId)
-      const exists = selectedLoras.value.some(l => l.versionId === lora.versionId)
+      const exists = props.currentLoras.some(l => l.versionId === lora.versionId)
       if (exists) {
         return
       }
-
-      selectedLoras.value.push(lora)
-      activeTab.value = 'selected'
 
       // Cache the LoRA metadata for future use
       try {
@@ -391,31 +346,15 @@ export default {
         console.error('Failed to cache LoRA:', error)
         // Don't block the UI if caching fails
       }
-    }
 
-    const updateLora = (index, updatedLora) => {
-      selectedLoras.value[index] = updatedLora
-    }
-
-    const removeLora = (index) => {
-      selectedLoras.value.splice(index, 1)
+      // Emit directly to parent to add to request
+      emit('add', lora)
     }
 
     const toggleFavorite = async (loraId) => {
       await toggleFav(loraId)
       // Reload favorites to update the list
       await loadFavoritesData()
-    }
-
-    const addTriggerWord = (word) => {
-      // This will be handled by the parent component (RequestGeneratorModal)
-      // For now, just emit an event or handle it differently
-      console.log('Add trigger word to prompt:', word)
-    }
-
-    const applySelection = () => {
-      emit('update', selectedLoras.value)
-      emit('close')
     }
 
     const retry = () => {
@@ -493,7 +432,6 @@ export default {
       activeTab,
       showFilter,
       searchQuery,
-      selectedLoras,
       selectedFilters,
       showDetailsOverlay,
       selectedLoraForDetails,
@@ -523,11 +461,7 @@ export default {
       onFiltersChange,
       showDetails,
       onAddLora,
-      updateLora,
-      removeLora,
       toggleFavorite,
-      addTriggerWord,
-      applySelection,
       retry,
       goToNextPage,
       goToPreviousPage
@@ -720,12 +654,6 @@ export default {
   }
 }
 
-.selected-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
 .loading-state,
 .error-state,
 .empty-state {
@@ -826,28 +754,5 @@ export default {
 .page-indicator {
   color: white;
   font-size: 14px;
-}
-
-.picker-footer {
-  padding: 16px;
-  border-top: 1px solid #333;
-  background: var(--color-surface);
-}
-
-.btn-apply {
-  width: 100%;
-  background: #4fc3f7;
-  border: none;
-  border-radius: 4px;
-  color: white;
-  padding: 12px 24px;
-  font-size: 16px;
-  font-weight: bold;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.btn-apply:hover {
-  background: #29b6f6;
 }
 </style>
