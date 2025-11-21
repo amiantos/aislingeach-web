@@ -290,14 +290,13 @@
               <div class="loras-section">
                 <!-- LoRAs -->
                 <div class="form-group">
-                  <label>LoRAs</label>
-                  <div class="selector-button" @click="showLoraPicker = true">
-                    <span class="selector-value">
-                      {{ form.loras.length > 0 ? `${form.loras.length} selected` : 'None' }}
-                    </span>
-                    <span class="selector-arrow">›</span>
-                  </div>
-
+                  <button
+                    type="button"
+                    class="btn btn-browse-loras"
+                    @click="showLoraPicker = true"
+                  >
+                    Browse LoRAs
+                  </button>
                   <div v-if="form.loras.length > 0" class="loras-list">
                     <div
                       v-for="(lora, idx) in form.loras"
@@ -1758,6 +1757,24 @@ export default {
   font-weight: 300;
 }
 
+/* LoRA Browse Button */
+.btn-browse-loras {
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  background: var(--color-primary);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-browse-loras:hover {
+  background: var(--color-primary-hover);
+}
+
 /* LoRA Controls List */
 .loras-list {
   display: flex;
@@ -1768,7 +1785,6 @@ export default {
 
 .lora-card {
   background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 6px;
   padding: 1rem;
 }
