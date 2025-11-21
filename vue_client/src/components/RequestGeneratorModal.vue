@@ -508,6 +508,7 @@ export default {
     settingsStore.loadWorkerPreferences()
 
     // Load last used settings (from localStorage for speed, fallback to server)
+    // Now loads the actual Horde request and uses loadSettings() for enrichment
     const loadLastUsedSettings = async () => {
       try {
         // Try localStorage first for instant loading
@@ -516,11 +517,9 @@ export default {
           try {
             const lastSettings = JSON.parse(cachedSettings)
             if (lastSettings && typeof lastSettings === 'object') {
-              // Convert plain lora objects to SavedLora instances
-              if (lastSettings.loras && Array.isArray(lastSettings.loras)) {
-                lastSettings.loras = lastSettings.loras.map(lora => new SavedLora(lora))
-              }
-              Object.assign(form, lastSettings)
+              // Use the standard loadSettings function (same as historical requests)
+              // This will enrich minimal LoRA data from cache
+              await loadSettings(lastSettings, false)
               return // Success, no need to fetch from server
             }
           } catch (parseError) {
@@ -535,11 +534,8 @@ export default {
           try {
             const lastSettings = JSON.parse(response.data.last_used_settings)
             if (lastSettings && typeof lastSettings === 'object') {
-              // Convert plain lora objects to SavedLora instances
-              if (lastSettings.loras && Array.isArray(lastSettings.loras)) {
-                lastSettings.loras = lastSettings.loras.map(lora => new SavedLora(lora))
-              }
-              Object.assign(form, lastSettings)
+              // Use the standard loadSettings function
+              await loadSettings(lastSettings, false)
               // Cache the settings locally for next time
               localStorage.setItem('lastUsedSettings', JSON.stringify(lastSettings))
             }
@@ -553,26 +549,17 @@ export default {
     }
 
     // Save last used settings (to both localStorage and server)
-    const saveLastUsedSettings = async () => {
+    // Now saves the actual Horde request params, not form state
+    // This way loading uses the same enrichment logic as historical requests
+    const saveLastUsedSettings = async (requestParams) => {
       try {
-        const settingsToSave = { ...form }
-
-        // Ensure LoRAs are properly serialized
-        // Convert SavedLora instances to plain objects for JSON storage
-        if (settingsToSave.loras && Array.isArray(settingsToSave.loras)) {
-          settingsToSave.loras = settingsToSave.loras.map(lora => {
-            // If it's a SavedLora instance, convert to plain object
-            if (lora.toHordeFormat && typeof lora.toHordeFormat === 'function') {
-              // Serialize all properties, not just the minimal format
-              return { ...lora }
-            }
-            return lora
-          })
+        // Save the actual request that was sent to Horde
+        // This includes minimal LoRA data that will be enriched on load
+        const settingsToSave = {
+          prompt: requestParams.prompt,
+          models: requestParams.models,
+          params: requestParams.params
         }
-
-        // Note: LoRAs are now saved in last used settings
-        // (Previously removed because they were style-specific, but users want them persisted)
-        // Don't save worker preferences (they're now stored separately in settings)
 
         // Save to localStorage immediately for instant access
         localStorage.setItem('lastUsedSettings', JSON.stringify(settingsToSave))
@@ -1111,8 +1098,8 @@ export default {
           params
         })
 
-        // Save settings for next time
-        await saveLastUsedSettings()
+        // Save settings for next time (save the actual request, not form state)
+        await saveLastUsedSettings(params)
 
         // Cache and add LoRAs to recent (after successful submission)
         if (form.loras && form.loras.length > 0) {
