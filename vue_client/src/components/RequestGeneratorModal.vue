@@ -247,6 +247,7 @@
                       <span class="lora-name">{{ lora.name }}</span>
                       <span class="lora-strength">M:{{ lora.strength }} C:{{ lora.clip }}</span>
                       <button
+                        type="button"
                         @click.stop="removeLora(idx)"
                         class="chip-remove"
                         title="Remove LoRA"
