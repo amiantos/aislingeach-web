@@ -151,6 +151,18 @@ function initDatabase() {
     }
   }
 
+  // Migration: Add horde_id column to horde_requests table
+  // Stores the AI Horde request ID for status checking and recovery
+  try {
+    db.exec(`ALTER TABLE horde_requests ADD COLUMN horde_id TEXT`);
+    console.log('Migration: Added horde_id column to horde_requests table');
+  } catch (error) {
+    // Column already exists, ignore error
+    if (!error.message.includes('duplicate column name')) {
+      console.error('Migration error:', error.message);
+    }
+  }
+
   // LoRA metadata cache table
   db.exec(`
     CREATE TABLE IF NOT EXISTS lora_cache (
