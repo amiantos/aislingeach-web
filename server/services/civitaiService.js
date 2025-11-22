@@ -5,7 +5,7 @@
  * Implements database caching to reduce API calls and improve performance.
  */
 
-import { CivitaiSearchCache } from '../db/models.js';
+import { CivitaiSearchCache, LoraCache } from '../db/models.js';
 
 const API_BASE_URL = 'https://civitai.com/api/v1';
 const CACHE_TTL = 60 * 60 * 1000; // 60 minutes
@@ -84,6 +84,31 @@ function getCacheKey({ query = '', page = 1, baseModelFilters = [], nsfw = false
 }
 
 /**
+ * Cache a model's versions in LoraCache for long-term persistence
+ * This allows us to enrich historical requests with full LoRA metadata
+ */
+function cacheModelVersions(modelData) {
+  try {
+    if (!modelData || !modelData.modelVersions || !Array.isArray(modelData.modelVersions)) {
+      return;
+    }
+
+    // Cache each version with the full model data
+    for (const version of modelData.modelVersions) {
+      if (version.id) {
+        LoraCache.set(
+          String(version.id),
+          String(modelData.id),
+          modelData
+        );
+      }
+    }
+  } catch (error) {
+    console.error('[CivitAI] Error caching model versions:', error);
+  }
+}
+
+/**
  * Search LoRAs on CivitAI
  */
 export async function searchLoras({
@@ -134,6 +159,13 @@ export async function searchLoras({
       CivitaiSearchCache.set(cacheKey, data);
     }
 
+    // Cache all model versions in LoraCache for long-term persistence
+    if (data.items && Array.isArray(data.items)) {
+      for (const model of data.items) {
+        cacheModelVersions(model);
+      }
+    }
+
     return {
       items: data.items || [],
       metadata: data.metadata || {
@@ -178,6 +210,9 @@ export async function getLoraById(modelId) {
     // Cache the result
     CivitaiSearchCache.set(cacheKey, data);
 
+    // Cache model versions in LoraCache for long-term persistence
+    cacheModelVersions(data);
+
     return {
       ...data,
       cached: false
@@ -190,14 +225,26 @@ export async function getLoraById(modelId) {
 
 /**
  * Get a LoRA model by version ID (two-step process)
+ * Checks LoraCache first for long-term persistence, then CivitaiSearchCache, then API
  */
 export async function getLoraByVersionId(versionId) {
   try {
+    // Check long-term LoraCache first
+    const loraCached = LoraCache.get(String(versionId));
+    if (loraCached) {
+      console.log(`[CivitAI] LoraCache hit for version: ${versionId}`);
+      return {
+        ...loraCached.full_metadata,
+        cached: true
+      };
+    }
+
+    // Check short-term CivitaiSearchCache
     const cacheKey = `version_${versionId}`;
     const cached = CivitaiSearchCache.get(cacheKey);
 
     if (cached && (Date.now() - cached.cached_at < CACHE_TTL)) {
-      console.log(`[CivitAI] Cache hit for version: ${versionId}`);
+      console.log(`[CivitAI] SearchCache hit for version: ${versionId}`);
       return {
         ...cached.result_data,
         cached: true
@@ -220,6 +267,9 @@ export async function getLoraByVersionId(versionId) {
 
     // Cache the result under version ID for future lookups
     CivitaiSearchCache.set(cacheKey, modelData);
+
+    // Cache model versions in LoraCache for long-term persistence
+    cacheModelVersions(modelData);
 
     return {
       ...modelData,

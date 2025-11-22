@@ -188,7 +188,6 @@ import { useLoraCache, useLoraFavorites, useLoraRecent } from '../composables/us
 import { LORA_CONSTANTS } from '../models/Lora'
 import { useSettingsStore } from '../stores/settingsStore'
 import { getLoraById } from '../api/civitai'
-import { cacheLora } from '../composables/useLoraMetadataCache'
 
 export default {
   name: 'LoraPicker',
@@ -339,13 +338,7 @@ export default {
         return
       }
 
-      // Cache the LoRA metadata for future use
-      try {
-        await cacheLora(lora)
-      } catch (error) {
-        console.error('Failed to cache LoRA:', error)
-        // Don't block the UI if caching fails
-      }
+      // Note: Cache is automatically populated by server when fetching via CivitAI API
 
       // Emit directly to parent to add to request
       emit('add', lora)

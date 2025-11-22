@@ -526,7 +526,7 @@ import LoraDetails from './LoraDetails.vue'
 import { getLoraById, getLoraByVersionId } from '../api/civitai'
 import { SavedLora } from '../models/Lora'
 import { useLoraRecent } from '../composables/useLoraCache'
-import { getCachedLoras, cacheMultipleLoras } from '../composables/useLoraMetadataCache'
+import { getCachedLoras } from '../composables/useLoraMetadataCache'
 
 export default {
   name: 'RequestGeneratorModal',
@@ -895,16 +895,7 @@ export default {
         // Load and enrich LoRAs
         if (params.loras && params.loras.length > 0) {
           form.loras = await enrichLoras(params.loras)
-
-          // Cache any LoRAs that have full metadata (not stubs)
-          try {
-            const fullLoras = form.loras.filter(lora => !lora.isManualEntry)
-            if (fullLoras.length > 0) {
-              await cacheMultipleLoras(fullLoras)
-            }
-          } catch (error) {
-            console.error('Failed to cache LoRAs:', error)
-          }
+          // Note: Cache is automatically populated by server when enriching via CivitAI API
         } else {
           form.loras = []
         }
@@ -1279,13 +1270,10 @@ export default {
         // Save settings for next time (save the actual request, not form state)
         await saveLastUsedSettings(params)
 
-        // Cache and add LoRAs to recent (after successful submission)
+        // Add LoRAs to recent list (after successful submission)
+        // Note: Cache is automatically populated by server when fetching via CivitAI API
         if (form.loras && form.loras.length > 0) {
           try {
-            // Cache all LoRAs for future enrichment
-            await cacheMultipleLoras(form.loras)
-
-            // Add to recent list
             for (const lora of form.loras) {
               await addToRecent(lora)
             }

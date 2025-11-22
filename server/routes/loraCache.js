@@ -1,3 +1,10 @@
+/**
+ * LoRA Cache Routes
+ *
+ * Read-only endpoints for accessing cached LoRA metadata.
+ * Cache population is handled automatically by civitaiService.js
+ */
+
 import express from 'express';
 import { LoraCache } from '../db/models.js';
 
@@ -41,46 +48,6 @@ router.post('/batch', (req, res) => {
   } catch (error) {
     console.error('Error fetching cached LoRAs:', error);
     res.status(500).json({ error: 'Failed to fetch cached LoRAs' });
-  }
-});
-
-// Store single LoRA metadata
-router.post('/', (req, res) => {
-  try {
-    const lora = req.body;
-
-    if (!lora.versionId || !lora.id) {
-      return res.status(400).json({ error: 'LoRA must have versionId and id' });
-    }
-
-    const result = LoraCache.set(
-      String(lora.versionId),
-      String(lora.id),
-      lora
-    );
-
-    res.json({ success: true, cached: result });
-  } catch (error) {
-    console.error('Error caching LoRA:', error);
-    res.status(500).json({ error: 'Failed to cache LoRA' });
-  }
-});
-
-// Store multiple LoRAs (batch)
-router.post('/batch-store', (req, res) => {
-  try {
-    const { loras } = req.body;
-
-    if (!Array.isArray(loras)) {
-      return res.status(400).json({ error: 'loras must be an array' });
-    }
-
-    const count = LoraCache.setMultiple(loras);
-
-    res.json({ success: true, count });
-  } catch (error) {
-    console.error('Error caching LoRAs:', error);
-    res.status(500).json({ error: 'Failed to cache LoRAs' });
   }
 });
 

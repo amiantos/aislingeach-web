@@ -1,7 +1,8 @@
 /**
  * useLoraMetadataCache Composable
  *
- * Provides access to the persistent LoRA metadata cache stored in the database.
+ * Provides READ-ONLY access to the persistent LoRA metadata cache stored in the database.
+ * Cache population is handled automatically by the server when LoRAs are fetched from CivitAI.
  * This cache stores full LoRA details (names, images, descriptions, trained words)
  * so that when loading historical requests with minimal LoRA data, we can
  * reconstruct the full SavedLora objects.
@@ -79,78 +80,7 @@ export async function getCachedLoras(versionIds) {
   }
 }
 
-/**
- * Cache a single LoRA's metadata
- * @param {SavedLora} lora - SavedLora instance to cache
- * @returns {Promise<boolean>} Success status
- */
-export async function cacheLora(lora) {
-  try {
-    if (!lora.versionId || !lora.id) {
-      console.warn('Cannot cache LoRA without versionId and id', lora)
-      return false
-    }
-
-    const response = await fetch(API_BASE, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(lora)
-    })
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-
-    return true
-  } catch (error) {
-    console.error('Error caching LoRA:', error)
-    return false
-  }
-}
-
-/**
- * Cache multiple LoRAs (batch operation)
- * @param {Array<SavedLora>} loras - Array of SavedLora instances
- * @returns {Promise<number>} Number of LoRAs cached
- */
-export async function cacheMultipleLoras(loras) {
-  try {
-    if (!loras || loras.length === 0) {
-      return 0
-    }
-
-    // Filter out any without required IDs
-    const validLoras = loras.filter(lora => lora.versionId && lora.id)
-
-    if (validLoras.length === 0) {
-      return 0
-    }
-
-    const response = await fetch(`${API_BASE}/batch-store`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ loras: validLoras })
-    })
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-
-    const result = await response.json()
-    return result.count || 0
-  } catch (error) {
-    console.error('Error caching multiple LoRAs:', error)
-    return 0
-  }
-}
-
 export default {
   getCachedLora,
-  getCachedLoras,
-  cacheLora,
-  cacheMultipleLoras
+  getCachedLoras
 }
