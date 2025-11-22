@@ -63,8 +63,19 @@
 
           <!-- Action Buttons -->
           <div class="action-buttons">
-            <button class="btn-add-lora" @click="addLora">
+            <button
+              v-if="!isAlreadyAdded"
+              class="btn-add-lora"
+              @click="addLora"
+            >
               <i class="fas fa-plus"></i> Add LoRA
+            </button>
+            <button
+              v-else
+              class="btn-remove-lora"
+              @click="removeLora"
+            >
+              <i class="fas fa-trash"></i> Remove LoRA
             </button>
 
             <div class="badge base-model-display">
@@ -89,9 +100,16 @@
           </div>
 
           <!-- Version Selector -->
-          <div v-if="lora.modelVersions && lora.modelVersions.length > 1" class="version-selector">
+          <div v-if="lora.modelVersions && (lora.modelVersions.length > 1 || isDeprecatedVersion)" class="version-selector">
             <label>Select Version:</label>
             <select v-model="selectedVersionId" @change="onVersionChange" class="version-select">
+              <option
+                v-if="isDeprecatedVersion"
+                :value="selectedVersionId"
+                class="deprecated-version"
+              >
+                ⚠️ Currently Selected (Deprecated/Unavailable)
+              </option>
               <option
                 v-for="version in lora.modelVersions"
                 :key="version.id"
@@ -100,6 +118,10 @@
                 {{ version.baseModel }} - {{ version.name }}
               </option>
             </select>
+            <div v-if="isDeprecatedVersion" class="deprecated-warning">
+              <i class="fas fa-exclamation-triangle"></i>
+              This version is no longer available on CivitAI. You can keep using it, but it may not work on all workers.
+            </div>
           </div>
 
           <!-- File Size -->
@@ -131,8 +153,19 @@
         <button class="btn-cancel" @click="$emit('close')">
           Cancel
         </button>
-        <button class="btn-add-lora-footer" @click="addLora">
+        <button
+          v-if="!isAlreadyAdded"
+          class="btn-add-lora-footer"
+          @click="addLora"
+        >
           <i class="fas fa-plus"></i> Add LoRA
+        </button>
+        <button
+          v-else
+          class="btn-remove-lora-footer"
+          @click="removeLora"
+        >
+          <i class="fas fa-trash"></i> Remove LoRA
         </button>
       </div>
     </div>
@@ -170,17 +203,29 @@ export default {
     nsfwEnabled: {
       type: Boolean,
       default: false
+    },
+    currentLoras: {
+      type: Array,
+      default: () => []
     }
   },
-  emits: ['close', 'addLora', 'toggleFavorite'],
+  emits: ['close', 'addLora', 'removeLora', 'toggleFavorite'],
   setup() {
     const { isFavorite: checkIsFavorite, toggleFavorite: toggleFav } = useLoraFavorites()
     return { checkIsFavorite, toggleFav }
   },
   data() {
-    const firstVersion = this.lora.modelVersions?.[0]
+    // If this LoRA is already added to the request, default to that version
+    // Otherwise, default to the first version in the list
+    const addedLora = this.currentLoras.find(l =>
+      l.id === this.lora.id ||
+      this.lora.modelVersions?.some(v => v.id === l.versionId)
+    )
+
+    const defaultVersionId = addedLora?.versionId || this.lora.versionId || this.lora.modelVersions?.[0]?.id || null
+
     return {
-      selectedVersionId: firstVersion?.id || null,
+      selectedVersionId: defaultVersionId,
       currentImageIndex: 0
     }
   },
@@ -188,6 +233,12 @@ export default {
     selectedVersion() {
       return this.lora.modelVersions?.find(v => v.id === this.selectedVersionId) ||
              this.lora.modelVersions?.[0]
+    },
+
+    isDeprecatedVersion() {
+      // Check if the selected version ID doesn't exist in the available versions
+      if (!this.selectedVersionId || !this.lora.modelVersions) return false
+      return !this.lora.modelVersions.some(v => v.id === this.selectedVersionId)
     },
 
     selectedVersionImages() {
@@ -221,6 +272,33 @@ export default {
 
     isFavorite() {
       return this.checkIsFavorite(this.lora.id)
+    },
+
+    isAlreadyAdded() {
+      // Check if the currently selected version is in the currentLoras list
+      console.log('[LoraDetails] Debug isAlreadyAdded:')
+      console.log('  Viewing LoRA:', this.lora.name, '(ID:', this.lora.id, ')')
+      console.log('  Selected version:', this.selectedVersion?.name, '(Version ID:', this.selectedVersionId, typeof this.selectedVersionId, ')')
+      console.log('  All versions of this LoRA:', this.lora.modelVersions?.map(v => ({
+        name: v.name,
+        id: v.id,
+        type: typeof v.id
+      })))
+      console.log('  Current loras in request:', this.currentLoras.map(l => ({
+        loraName: l.name,
+        loraId: l.id,
+        versionId: l.versionId,
+        versionIdType: typeof l.versionId
+      })))
+
+      const found = this.currentLoras.some(lora => {
+        const match = lora.versionId === this.selectedVersionId
+        console.log(`  Comparing: ${lora.versionId} (${typeof lora.versionId}) === ${this.selectedVersionId} (${typeof this.selectedVersionId}) = ${match}`)
+        return match
+      })
+
+      console.log('  Result:', found)
+      return found
     }
   },
   methods: {
@@ -243,6 +321,12 @@ export default {
     addLora() {
       const savedLora = SavedLora.fromEmbedding(this.lora, this.selectedVersionId)
       this.$emit('addLora', savedLora)
+      this.$emit('close')
+    },
+
+    removeLora() {
+      // Emit the specific version ID to remove
+      this.$emit('removeLora', this.selectedVersionId)
       this.$emit('close')
     },
 
@@ -443,8 +527,8 @@ export default {
   align-items: center;
 }
 
-.btn-add-lora {
-  background: #4CAF50;
+.btn-add-lora,
+.btn-remove-lora {
   border: none;
   border-radius: 4px;
   color: white;
@@ -455,8 +539,20 @@ export default {
   transition: background 0.2s;
 }
 
+.btn-add-lora {
+  background: #4CAF50;
+}
+
 .btn-add-lora:hover {
   background: #45a049;
+}
+
+.btn-remove-lora {
+  background: #dc2626;
+}
+
+.btn-remove-lora:hover {
+  background: #b91c1c;
 }
 
 .badge {
@@ -531,6 +627,25 @@ export default {
   font-size: 13px;
 }
 
+.deprecated-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px;
+  background: rgba(255, 152, 0, 0.1);
+  border: 1px solid rgba(255, 152, 0, 0.3);
+  border-radius: 4px;
+  color: #ff9800;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.deprecated-warning i {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
 .version-description,
 .model-description {
   margin-bottom: 16px;
@@ -558,7 +673,8 @@ export default {
 }
 
 .btn-cancel,
-.btn-add-lora-footer {
+.btn-add-lora-footer,
+.btn-remove-lora-footer {
   border: none;
   border-radius: 4px;
   cursor: pointer;
@@ -584,5 +700,14 @@ export default {
 
 .btn-add-lora-footer:hover {
   background: #45a049;
+}
+
+.btn-remove-lora-footer {
+  background: #dc2626;
+  color: white;
+}
+
+.btn-remove-lora-footer:hover {
+  background: #b91c1c;
 }
 </style>

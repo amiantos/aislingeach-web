@@ -501,7 +501,9 @@
       <LoraDetails
         v-if="showLoraDetails"
         :lora="selectedLoraForDetails"
+        :currentLoras="form.loras"
         @close="showLoraDetails = false"
+        @removeLora="removeLoraFromDetails"
       />
     </div>
   </div>
@@ -741,6 +743,16 @@ export default {
     const showLoraInfo = (lora) => {
       selectedLoraForDetails.value = lora
       showLoraDetails.value = true
+    }
+
+    const removeLoraFromDetails = (versionId) => {
+      // Find and remove the lora with the specific version ID
+      const index = form.loras.findIndex(lora =>
+        lora.versionId === versionId
+      )
+      if (index !== -1) {
+        removeLora(index)
+      }
     }
 
     // Helper to enrich minimal LoRA data with full CivitAI details
@@ -1420,6 +1432,7 @@ export default {
       loraTrainedWords,
       addTriggerWord,
       showLoraInfo,
+      removeLoraFromDetails,
       applyStyle,
       removeStyle,
       onAspectLockToggle,
