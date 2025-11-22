@@ -332,9 +332,19 @@ export const HordePendingDownload = {
     return stmt.all();
   },
 
+  findByRequestId(requestId) {
+    const stmt = db.prepare('SELECT * FROM horde_pending_downloads WHERE request_id = ?');
+    return stmt.all(requestId);
+  },
+
   delete(uuid) {
     const stmt = db.prepare('DELETE FROM horde_pending_downloads WHERE uuid = ?');
     return stmt.run(uuid);
+  },
+
+  deleteByRequestId(requestId) {
+    const stmt = db.prepare('DELETE FROM horde_pending_downloads WHERE request_id = ?');
+    return stmt.run(requestId);
   }
 };
 
