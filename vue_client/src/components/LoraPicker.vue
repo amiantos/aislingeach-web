@@ -14,6 +14,19 @@
     <!-- Filter Panel -->
     <div v-if="showFilter" class="filter-panel">
       <div class="filter-section">
+        <h4>Sort By</h4>
+        <select
+          v-model="sortOrder"
+          @change="onSortChange"
+          class="sort-select"
+        >
+          <option v-for="option in sortOptions" :key="option" :value="option">
+            {{ option }}
+          </option>
+        </select>
+      </div>
+
+      <div class="filter-section">
         <h4>Base Models</h4>
         <div class="filter-checkboxes">
           <label v-for="filter in baseModelOptions" :key="filter" class="checkbox-label">
@@ -213,13 +226,15 @@ export default {
       currentPage,
       baseModelFilters,
       nsfwEnabled,
+      sortOrder,
       hasNextPage,
       hasPreviousPage,
       search,
       searchImmediate,
       goToNextPage,
       goToPreviousPage,
-      updateFilters
+      updateFilters,
+      updateSort
     } = useLoraCache()
 
     const {
@@ -300,12 +315,23 @@ export default {
       'NSFW'
     ]
 
+    // Sort options (matches CivitAI API)
+    const sortOptions = [
+      'Highest Rated',
+      'Most Downloaded',
+      'Newest'
+    ]
+
     // Methods
     const onSearchInput = () => {
       if (activeTab.value === 'browse') {
         search(searchQuery.value)
       }
       // For favorites and recent, filtering is done via computed properties
+    }
+
+    const onSortChange = (event) => {
+      updateSort(event.target.value)
     }
 
     const clearSearch = () => {
@@ -471,6 +497,7 @@ export default {
       filteredFavorites,
       filteredRecent,
       baseModelOptions,
+      sortOptions,
 
       // From composables
       loading,
@@ -481,9 +508,11 @@ export default {
       favorites,
       favoritesLoading,
       recentLoading,
+      sortOrder,
 
       // Methods
       onSearchInput,
+      onSortChange,
       clearSearch,
       onFiltersChange,
       showDetails,
@@ -564,11 +593,40 @@ export default {
   border-bottom: 1px solid #333;
 }
 
+.filter-section {
+  margin-bottom: 16px;
+}
+
+.filter-section:last-child {
+  margin-bottom: 0;
+}
+
 .filter-section h4 {
   margin: 0 0 12px 0;
   color: white;
   font-size: 14px;
   font-weight: bold;
+}
+
+.sort-select {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--color-surface);
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: white;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.sort-select:focus {
+  outline: none;
+  border-color: #4fc3f7;
+}
+
+.sort-select option {
+  background: var(--color-surface);
+  color: white;
 }
 
 .filter-checkboxes {

@@ -13,15 +13,14 @@ const CACHE_TTL = 60 * 60 * 1000; // 60 minutes
 /**
  * Build query string for CivitAI API
  */
-function buildQueryString({ query = '', page = 1, limit = 20, baseModelFilters = [], nsfw = false }) {
+function buildQueryString({ query = '', page = 1, limit = 100, baseModelFilters = [], nsfw = false, sort = 'Highest Rated' }) {
   const params = new URLSearchParams();
 
-  // LoRA types
+  // LoRA types (LoCon removed - not a valid API type)
   params.append('types', 'LORA');
-  params.append('types', 'LoCon');
 
   // Sorting
-  params.append('sort', 'Highest Rated');
+  params.append('sort', sort);
 
   // Limit
   params.append('limit', limit);
@@ -29,8 +28,10 @@ function buildQueryString({ query = '', page = 1, limit = 20, baseModelFilters =
   // Search query
   if (query) {
     params.append('query', query);
+    // NOTE: Cannot use 'page' parameter with query searches - must use cursor-based pagination
+    // Pagination for searches is handled via metadata.nextPage cursor URLs
   } else {
-    // Only add page if no query (CivitAI pagination works differently for searches)
+    // Only use page parameter for browsing (no query)
     params.append('page', page);
   }
 
@@ -78,9 +79,14 @@ function buildQueryString({ query = '', page = 1, limit = 20, baseModelFilters =
 
 /**
  * Generate cache key for a search
+ * Note: For searches with query, pagination is cursor-based (not page-based)
+ * So we only include page in the cache key when there's no query
  */
-function getCacheKey({ query = '', page = 1, baseModelFilters = [], nsfw = false }) {
-  return `${query || 'default'}_${page}_${(baseModelFilters || []).sort().join(',')}_${nsfw}`;
+function getCacheKey({ query = '', page = 1, limit = 100, baseModelFilters = [], nsfw = false, sort = 'Highest Rated' }) {
+  // For searches (with query), don't include page in cache key (cursor-based pagination)
+  // For browsing (no query), include page in cache key (page-based pagination)
+  const pageKey = query ? 'p1' : `p${page}`;
+  return `${query || 'default'}_${pageKey}_${limit}_${sort}_${(baseModelFilters || []).sort().join(',')}_${nsfw}`;
 }
 
 /**
@@ -114,9 +120,10 @@ function cacheModelVersions(modelData) {
 export async function searchLoras({
   query = '',
   page = 1,
-  limit = 20,
+  limit = 100,
   baseModelFilters = [],
   nsfw = false,
+  sort = 'Highest Rated',
   url = null
 }) {
   try {
@@ -127,20 +134,19 @@ export async function searchLoras({
       fetchUrl = url.startsWith('http') ? url : `${API_BASE_URL}/models?${url}`;
     } else {
       // Build query string
-      const queryString = buildQueryString({ query, page, limit, baseModelFilters, nsfw });
+      const queryString = buildQueryString({ query, page, limit, baseModelFilters, nsfw, sort });
       fetchUrl = `${API_BASE_URL}/models?${queryString}`;
 
-      // Check cache
-      const cacheKey = getCacheKey({ query, page, baseModelFilters, nsfw });
-      const cached = CivitaiSearchCache.get(cacheKey);
-
-      if (cached && (Date.now() - cached.cached_at < CACHE_TTL)) {
-        console.log(`[CivitAI] Cache hit for search: ${cacheKey}`);
-        return {
-          ...cached.result_data,
-          cached: true
-        };
-      }
+      // CACHE DISABLED FOR DEBUGGING
+      // const cacheKey = getCacheKey({ query, page, limit, baseModelFilters, nsfw, sort });
+      // const cached = CivitaiSearchCache.get(cacheKey);
+      // if (cached && (Date.now() - cached.cached_at < CACHE_TTL)) {
+      //   console.log(`[CivitAI] Cache hit for search: ${cacheKey}`);
+      //   return {
+      //     ...cached.result_data,
+      //     cached: true
+      //   };
+      // }
     }
 
     // Fetch from CivitAI API
@@ -148,16 +154,30 @@ export async function searchLoras({
     const response = await fetch(fetchUrl);
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      let errorMessage = `HTTP error! status: ${response.status}`;
+      try {
+        const errorData = await response.json();
+        if (errorData.error) {
+          errorMessage += ` - ${errorData.error}`;
+        }
+        console.error('[CivitAI] API Error Response:', errorData);
+      } catch (e) {
+        // Could not parse error response as JSON
+      }
+      throw new Error(errorMessage);
     }
 
     const data = await response.json();
 
-    // Cache the result (if not using direct URL)
-    if (!url) {
-      const cacheKey = getCacheKey({ query, page, baseModelFilters, nsfw });
-      CivitaiSearchCache.set(cacheKey, data);
-    }
+    // Log the actual response for debugging
+    console.log(`[CivitAI] API returned ${data.items?.length || 0} items`);
+    console.log(`[CivitAI] Full metadata:`, JSON.stringify(data.metadata, null, 2));
+
+    // CACHE DISABLED FOR DEBUGGING
+    // if (!url) {
+    //   const cacheKey = getCacheKey({ query, page, limit, baseModelFilters, nsfw, sort });
+    //   CivitaiSearchCache.set(cacheKey, data);
+    // }
 
     // Cache all model versions in LoraCache for long-term persistence
     if (data.items && Array.isArray(data.items)) {
