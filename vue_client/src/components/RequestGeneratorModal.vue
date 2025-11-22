@@ -805,8 +805,10 @@ export default {
 
           if (cached) {
             // Found in cache or recent - use it and restore strengths from request
+            // IMPORTANT: Explicitly set versionId to preserve the specific version that was selected
             const enrichedLora = new SavedLora({
               ...cached,
+              versionId: versionId,  // Explicitly preserve the versionId from the minimal format
               strength: lora.model || 1.0,
               clip: lora.clip || 1.0
             })
