@@ -401,7 +401,12 @@ export default {
           recentItems.map(async (item) => {
             try {
               const lora = await getLoraByVersionId(item.versionId)
-              return lora
+              // Recreate the expected structure with model property
+              return {
+                versionId: item.versionId,
+                timestamp: item.timestamp,
+                model: lora
+              }
             } catch (error) {
               console.error(`Failed to fetch recent LoRA ${item.versionId}:`, error)
               return null
@@ -418,15 +423,19 @@ export default {
     }
 
     // Watch tab changes
-    watch(activeTab, (newTab) => {
+    watch(activeTab, async (newTab) => {
       searchQuery.value = ''
 
       if (newTab === 'browse' && browseResults.value.length === 0) {
         searchImmediate('')
       } else if (newTab === 'favorites' && favoritesEmbeddings.value.length === 0) {
-        loadFavoritesData()
+        await loadFavoritesData()
       } else if (newTab === 'recent' && recentEmbeddings.value.length === 0) {
-        loadRecentData()
+        try {
+          await loadRecentData()
+        } catch (error) {
+          console.error('Error loading recent LoRAs in watch handler:', error)
+        }
       }
     })
 
