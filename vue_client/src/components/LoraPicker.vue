@@ -6,15 +6,25 @@
         <span class="arrow">←</span> Back
       </button>
       <h3>LoRAs</h3>
-      <button class="btn-filter" @click="showFilter = !showFilter">
-        <i class="fas fa-filter"></i>
-      </button>
     </div>
 
-    <!-- Filter Panel -->
-    <div v-if="showFilter" class="filter-panel">
-      <div class="filter-section">
-        <h4>Sort By</h4>
+    <!-- Filter Panel - Always Visible -->
+    <div class="filter-panel">
+      <div class="filter-row-single">
+        <!-- Base Model Chips -->
+        <button
+          v-for="filter in baseModelFilterOptions"
+          :key="filter"
+          :class="['model-chip', { active: selectedFilters.includes(filter) }]"
+          @click="toggleFilter(filter)"
+        >
+          {{ filter }}
+        </button>
+
+        <!-- Divider -->
+        <div class="filter-divider"></div>
+
+        <!-- Sort Dropdown -->
         <select
           v-model="sortOrder"
           @change="onSortChange"
@@ -24,21 +34,14 @@
             {{ option }}
           </option>
         </select>
-      </div>
 
-      <div class="filter-section">
-        <h4>Base Models</h4>
-        <div class="filter-checkboxes">
-          <label v-for="filter in baseModelOptions" :key="filter" class="checkbox-label">
-            <input
-              type="checkbox"
-              :value="filter"
-              v-model="selectedFilters"
-              @change="onFiltersChange"
-            />
-            <span>{{ filter }}</span>
-          </label>
-        </div>
+        <!-- NSFW Toggle -->
+        <button
+          :class="['model-chip', { active: selectedFilters.includes('NSFW') }]"
+          @click="toggleFilter('NSFW')"
+        >
+          NSFW
+        </button>
       </div>
     </div>
 
@@ -252,7 +255,6 @@ export default {
 
     // State
     const activeTab = ref('browse')
-    const showFilter = ref(false)
     const searchQuery = ref('')
     const selectedFilters = ref([...baseModelFilters.value])
     const showDetailsOverlay = ref(false)
@@ -303,16 +305,15 @@ export default {
       )
     })
 
-    // Base model options
-    const baseModelOptions = [
+    // Base model options (without NSFW - handled separately)
+    const baseModelFilterOptions = [
       'SD 1.x',
       'SD 2.x',
       'SDXL',
       'Pony',
       'Flux',
       'NoobAI',
-      'Illustrious',
-      'NSFW'
+      'Illustrious'
     ]
 
     // Sort options (matches CivitAI API)
@@ -341,7 +342,14 @@ export default {
       }
     }
 
-    const onFiltersChange = () => {
+    const toggleFilter = (filter) => {
+      const index = selectedFilters.value.indexOf(filter)
+      if (index > -1) {
+        selectedFilters.value.splice(index, 1)
+      } else {
+        selectedFilters.value.push(filter)
+      }
+
       const nsfw = selectedFilters.value.includes('NSFW')
       const modelFilters = selectedFilters.value.filter(f => f !== 'NSFW')
       updateFilters(modelFilters, nsfw)
@@ -492,7 +500,6 @@ export default {
     return {
       // State
       activeTab,
-      showFilter,
       searchQuery,
       selectedFilters,
       showDetailsOverlay,
@@ -505,7 +512,7 @@ export default {
       nsfwEnabled: nsfwEnabledComputed,
       filteredFavorites,
       filteredRecent,
-      baseModelOptions,
+      baseModelFilterOptions,
       sortOptions,
 
       // From composables
@@ -523,7 +530,7 @@ export default {
       onSearchInput,
       onSortChange,
       clearSearch,
-      onFiltersChange,
+      toggleFilter,
       showDetails,
       onAddLora,
       toggleFavorite,
@@ -574,8 +581,7 @@ export default {
   color: white;
 }
 
-.btn-back,
-.btn-filter {
+.btn-back {
   background: none;
   border: none;
   color: white;
@@ -586,8 +592,7 @@ export default {
   border-radius: 4px;
 }
 
-.btn-back:hover,
-.btn-filter:hover {
+.btn-back:hover {
   background: rgba(255, 255, 255, 0.1);
 }
 
@@ -598,34 +603,57 @@ export default {
 
 .filter-panel {
   background: var(--color-surface-hover);
-  padding: 16px;
+  padding: 10px 16px;
   border-bottom: 1px solid #333;
 }
 
-.filter-section {
-  margin-bottom: 16px;
+.filter-row-single {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.filter-section:last-child {
-  margin-bottom: 0;
+.model-chip {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-light);
+  border-radius: 16px;
+  padding: 4px 12px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
 }
 
-.filter-section h4 {
-  margin: 0 0 12px 0;
+.model-chip:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-border-lighter);
+}
+
+.model-chip.active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
   color: white;
-  font-size: 14px;
-  font-weight: bold;
+}
+
+.filter-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--color-border);
+  margin: 0 4px;
 }
 
 .sort-select {
-  width: 100%;
-  padding: 8px 12px;
+  padding: 4px 10px;
   background: var(--color-surface);
-  border: 1px solid #444;
+  border: 1px solid var(--color-border-light);
   border-radius: 4px;
   color: white;
-  font-size: 13px;
+  font-size: 12px;
   cursor: pointer;
+  min-width: 130px;
 }
 
 .sort-select:focus {
@@ -638,23 +666,24 @@ export default {
   color: white;
 }
 
-.filter-checkboxes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-}
+@media (max-width: 768px) {
+  .filter-row-single {
+    gap: 6px;
+  }
 
-.checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: white;
-  font-size: 13px;
-  cursor: pointer;
-}
+  .model-chip {
+    font-size: 11px;
+    padding: 3px 10px;
+  }
 
-.checkbox-label input[type="checkbox"] {
-  cursor: pointer;
+  .sort-select {
+    min-width: 110px;
+    font-size: 11px;
+  }
+
+  .nsfw-checkbox {
+    font-size: 11px;
+  }
 }
 
 .tabs {
