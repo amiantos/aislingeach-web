@@ -4,7 +4,7 @@
       <div class="modal-content">
         <!-- Header -->
         <div class="modal-header">
-          <h3>LoRAs</h3>
+          <h3>Textual Inversions</h3>
           <button class="btn-close" @click="$emit('close')" title="Close">
             ×
           </button>
@@ -87,7 +87,7 @@
       <div v-if="activeTab === 'browse'" class="tab-content">
         <div v-if="loading" class="loading-state">
           <div class="spinner"></div>
-          <p>Loading LoRAs...</p>
+          <p>Loading Textual Inversions...</p>
         </div>
 
         <div v-else-if="error" class="error-state">
@@ -98,17 +98,17 @@
 
         <div v-else-if="browseResults.length === 0" class="empty-state">
           <i class="fas fa-search"></i>
-          <p>No LoRAs found</p>
+          <p>No Textual Inversions found</p>
         </div>
 
-        <div v-else class="lora-grid">
-          <LoraCard
-            v-for="lora in browseResults"
-            :key="lora.id"
-            :lora="lora"
-            :isFavorite="favorites.includes(lora.id)"
+        <div v-else class="ti-grid">
+          <TextualInversionCard
+            v-for="ti in browseResults"
+            :key="ti.id"
+            :ti="ti"
+            :isFavorite="favorites.includes(ti.id)"
             :nsfwEnabled="nsfwEnabled"
-            @click="showDetails(lora)"
+            @click="showDetails(ti)"
             @toggleFavorite="toggleFavorite"
           />
         </div>
@@ -142,17 +142,17 @@
 
         <div v-else-if="filteredFavorites.length === 0" class="empty-state">
           <i class="fas fa-heart"></i>
-          <p>No favorite LoRAs yet</p>
+          <p>No favorite Textual Inversions yet</p>
         </div>
 
-        <div v-else class="lora-grid">
-          <LoraCard
-            v-for="lora in filteredFavorites"
-            :key="lora.id"
-            :lora="lora"
+        <div v-else class="ti-grid">
+          <TextualInversionCard
+            v-for="ti in filteredFavorites"
+            :key="ti.id"
+            :ti="ti"
             :isFavorite="true"
             :nsfwEnabled="nsfwEnabled"
-            @click="showDetails(lora)"
+            @click="showDetails(ti)"
             @toggleFavorite="toggleFavorite"
           />
         </div>
@@ -162,19 +162,19 @@
       <div v-if="activeTab === 'recent'" class="tab-content">
         <div v-if="recentLoading" class="loading-state">
           <div class="spinner"></div>
-          <p>Loading recent LoRAs...</p>
+          <p>Loading recent Textual Inversions...</p>
         </div>
 
         <div v-else-if="filteredRecent.length === 0" class="empty-state">
           <i class="fas fa-clock"></i>
-          <p>No recently used LoRAs</p>
+          <p>No recently used Textual Inversions</p>
         </div>
 
-        <div v-else class="lora-grid">
-          <LoraCard
+        <div v-else class="ti-grid">
+          <TextualInversionCard
             v-for="item in filteredRecent"
             :key="item.versionId"
-            :lora="item.model"
+            :ti="item.model"
             :isFavorite="favorites.includes(item.model.id)"
             :nsfwEnabled="nsfwEnabled"
             @click="showDetails(item.model)"
@@ -184,13 +184,15 @@
       </div>
     </div>
 
-    <!-- LoRA Details Overlay -->
-    <LoraDetails
+    <!-- Textual Inversion Details Overlay -->
+    <TextualInversionDetails
       v-if="showDetailsOverlay"
-      :lora="selectedLoraForDetails"
+      :ti="selectedTiForDetails"
+      :currentTis="currentTis"
       :nsfwEnabled="nsfwEnabled"
       @close="showDetailsOverlay = false"
-      @addLora="onAddLora"
+      @addTi="onAddTi"
+      @removeTi="onRemoveTi"
       @toggleFavorite="toggleFavorite"
     />
       </div>
@@ -200,26 +202,26 @@
 
 <script>
 import { ref, computed, onMounted, watch } from 'vue'
-import LoraCard from './LoraCard.vue'
-import LoraDetails from './LoraDetails.vue'
-import { useLoraCache, useLoraFavorites, useLoraRecent } from '../composables/useLoraCache'
-import { LORA_CONSTANTS } from '../models/Lora'
+import TextualInversionCard from './TextualInversionCard.vue'
+import TextualInversionDetails from './TextualInversionDetails.vue'
+import { useTextualInversionCache, useTextualInversionFavorites, useTextualInversionRecent } from '../composables/useTextualInversionCache'
+import { TI_CONSTANTS } from '../models/TextualInversion'
 import { useSettingsStore } from '../stores/settingsStore'
-import { getLoraById, getLoraByVersionId } from '../api/civitai'
+import { getTiById, getTiByVersionId } from '../api/civitai'
 
 export default {
-  name: 'LoraPicker',
+  name: 'TextualInversionPicker',
   components: {
-    LoraCard,
-    LoraDetails
+    TextualInversionCard,
+    TextualInversionDetails
   },
   props: {
-    currentLoras: {
+    currentTis: {
       type: Array,
       default: () => []
     }
   },
-  emits: ['close', 'add', 'remove', 'updateLora'],
+  emits: ['close', 'add', 'remove', 'updateTi'],
   setup(props, { emit }) {
     const settingsStore = useSettingsStore()
 
@@ -240,28 +242,28 @@ export default {
       goToPreviousPage,
       updateFilters,
       updateSort
-    } = useLoraCache()
+    } = useTextualInversionCache()
 
     const {
       favorites,
       loading: favoritesLoading,
       loadFavorites,
       toggleFavorite: toggleFav
-    } = useLoraFavorites()
+    } = useTextualInversionFavorites()
 
     const {
       recent,
       loading: recentLoading,
       loadRecent
-    } = useLoraRecent()
+    } = useTextualInversionRecent()
 
     // State
     const activeTab = ref('browse')
     const searchQuery = ref('')
     const selectedFilters = ref([...baseModelFilters.value])
     const showDetailsOverlay = ref(false)
-    const selectedLoraForDetails = ref(null)
-    const maxLoras = LORA_CONSTANTS.MAX_LORAS
+    const selectedTiForDetails = ref(null)
+    // No max limit for TIs
 
     // Favorites and recent as embedings (full data)
     const favoritesEmbeddings = ref([])
@@ -273,7 +275,7 @@ export default {
     const searchPlaceholder = computed(() => {
       switch (activeTab.value) {
         case 'browse':
-          return 'Search LoRAs on CivitAI...'
+          return 'Search Textual Inversions on CivitAI...'
         case 'favorites':
           return 'Search favorites...'
         case 'recent':
@@ -291,9 +293,9 @@ export default {
       if (!searchQuery.value) return favoritesEmbeddings.value
 
       const query = searchQuery.value.toLowerCase()
-      return favoritesEmbeddings.value.filter(lora =>
-        lora.name.toLowerCase().includes(query) ||
-        lora.description?.toLowerCase().includes(query)
+      return favoritesEmbeddings.value.filter(ti =>
+        ti.name.toLowerCase().includes(query) ||
+        ti.description?.toLowerCase().includes(query)
       )
     })
 
@@ -357,30 +359,27 @@ export default {
       updateFilters(modelFilters, nsfw)
     }
 
-    const showDetails = async (lora) => {
+    const showDetails = async (ti) => {
       // Fetch full model data to get complete metadata, file info, and all versions
       try {
-        const fullModelData = await getLoraById(lora.id)
-        // Preserve the versionId from the clicked LORA so details modal shows the correct version
-        fullModelData.versionId = lora.versionId || fullModelData.versionId
-        selectedLoraForDetails.value = fullModelData
+        const fullModelData = await getTiById(ti.id)
+        // Preserve the versionId from the clicked TI so details modal shows the correct version
+        fullModelData.versionId = ti.versionId || fullModelData.versionId
+        selectedTiForDetails.value = fullModelData
         showDetailsOverlay.value = true
       } catch (error) {
         console.error('Error fetching full model data:', error)
         // Fallback to using the partial data from search
-        selectedLoraForDetails.value = lora
+        selectedTiForDetails.value = ti
         showDetailsOverlay.value = true
       }
     }
 
-    const onAddLora = async (lora) => {
-      if (props.currentLoras.length >= maxLoras) {
-        alert(`Maximum ${maxLoras} LoRAs allowed`)
-        return
-      }
+    const onAddTi = async (ti) => {
+      // No max limit for TIs
 
       // Check if already added (by versionId)
-      const exists = props.currentLoras.some(l => l.versionId === lora.versionId)
+      const exists = props.currentTis.some(t => t.versionId === ti.versionId)
       if (exists) {
         return
       }
@@ -388,11 +387,20 @@ export default {
       // Note: Cache is automatically populated by server when fetching via CivitAI API
 
       // Emit directly to parent to add to request
-      emit('add', lora)
+      emit('add', ti)
     }
 
-    const toggleFavorite = async (loraId) => {
-      await toggleFav(loraId)
+    const onRemoveTi = (versionId) => {
+      // Find the TI in currentTis and emit removal
+      const index = props.currentTis.findIndex(t => t.versionId === versionId)
+      if (index !== -1) {
+        // Emit to parent to remove by index
+        emit('remove', index)
+      }
+    }
+
+    const toggleFavorite = async (tiId) => {
+      await toggleFav(tiId)
       // Reload favorites to update the list
       await loadFavoritesData()
     }
@@ -405,7 +413,7 @@ export default {
     const loadFavoritesData = async () => {
       await loadFavorites()
 
-      // Fetch full embedding data for each favorite LoRA
+      // Fetch full embedding data for each favorite Textual Inversion
       const favoriteIds = favorites.value
       if (!favoriteIds || favoriteIds.length === 0) {
         favoritesEmbeddings.value = []
@@ -416,10 +424,10 @@ export default {
         const embeddings = await Promise.all(
           favoriteIds.map(async (id) => {
             try {
-              const lora = await getLoraById(id)
-              return lora
+              const ti = await getTiById(id)
+              return ti
             } catch (error) {
-              console.error(`Failed to fetch favorite LoRA ${id}:`, error)
+              console.error(`Failed to fetch favorite Textual Inversion ${id}:`, error)
               return null
             }
           })
@@ -436,7 +444,7 @@ export default {
     const loadRecentData = async () => {
       await loadRecent()
 
-      // Hydrate recent LoRAs from cache (recent now only stores versionId + timestamp)
+      // Hydrate recent Textual Inversions from cache (recent now only stores versionId + timestamp)
       const recentItems = recent.value
       if (!recentItems || recentItems.length === 0) {
         recentEmbeddings.value = []
@@ -447,15 +455,15 @@ export default {
         const embeddings = await Promise.all(
           recentItems.map(async (item) => {
             try {
-              const lora = await getLoraByVersionId(item.versionId)
+              const ti = await getTiByVersionId(item.versionId)
               // Recreate the expected structure with model property
               return {
                 versionId: item.versionId,
                 timestamp: item.timestamp,
-                model: lora
+                model: ti
               }
             } catch (error) {
-              console.error(`Failed to fetch recent LoRA ${item.versionId}:`, error)
+              console.error(`Failed to fetch recent Textual Inversion ${item.versionId}:`, error)
               return null
             }
           })
@@ -481,7 +489,7 @@ export default {
         try {
           await loadRecentData()
         } catch (error) {
-          console.error('Error loading recent LoRAs in watch handler:', error)
+          console.error('Error loading recent Textual Inversions in watch handler:', error)
         }
       }
     })
@@ -507,8 +515,8 @@ export default {
       searchQuery,
       selectedFilters,
       showDetailsOverlay,
-      selectedLoraForDetails,
-      maxLoras,
+      selectedTiForDetails,
+      // maxTis removed - no limit for TIs
 
       // Computed
       browseResults,
@@ -536,7 +544,8 @@ export default {
       clearSearch,
       toggleFilter,
       showDetails,
-      onAddLora,
+      onAddTi,
+      onRemoveTi,
       toggleFavorite,
       retry,
       goToNextPage,
@@ -781,7 +790,7 @@ export default {
   min-height: 100%;
 }
 
-.lora-grid {
+.ti-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 16px;
@@ -789,7 +798,7 @@ export default {
 }
 
 @media (max-width: 768px) {
-  .lora-grid {
+  .ti-grid {
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     gap: 12px;
   }

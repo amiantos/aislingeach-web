@@ -385,6 +385,103 @@
                 </div>
               </div>
 
+              <!-- Textual Inversions Section -->
+              <h4 class="section-title">Textual Inversions</h4>
+              <div class="tis-section">
+                <!-- Textual Inversions -->
+                <div class="form-group">
+                  <button
+                    type="button"
+                    class="btn btn-browse-tis"
+                    @click="showTiPicker = true"
+                  >
+                    Browse Textual Inversions
+                  </button>
+                  <div v-if="form.tis.length > 0" class="tis-list">
+                    <div
+                      v-for="(ti, idx) in form.tis"
+                      :key="`ti-${idx}`"
+                      class="ti-card"
+                    >
+                      <!-- TI Header -->
+                      <div class="ti-header">
+                        <div class="ti-title-section">
+                          <span class="ti-title">{{ ti.name }}</span>
+                          <span v-if="currentTiVersion(ti)" class="ti-version">{{ currentTiVersion(ti).name }}</span>
+                        </div>
+                        <div class="ti-actions">
+                          <button
+                            type="button"
+                            class="btn-icon-small"
+                            @click="showTiInfo(ti)"
+                            title="Show TI details"
+                            :disabled="ti.isManualEntry"
+                          >
+                            <i class="fas fa-info-circle"></i>
+                          </button>
+                          <button
+                            type="button"
+                            class="btn-icon-small btn-danger"
+                            @click="removeTi(idx)"
+                            title="Remove TI"
+                          >
+                            <i class="fas fa-trash"></i>
+                          </button>
+                        </div>
+                      </div>
+
+                      <!-- Strength -->
+                      <div class="ti-control-group">
+                        <label class="ti-control-label">Strength</label>
+                        <div class="slider-group">
+                          <input
+                            type="range"
+                            v-model.number="ti.strength"
+                            :style="{ background: getSliderBackground(ti.strength, -5, 5) }"
+                            @input="onTiStrengthChange(idx)"
+                            min="-5"
+                            max="5"
+                            step="0.05"
+                          />
+                          <span class="range-value">{{ ti.strength }}</span>
+                        </div>
+                      </div>
+
+                      <!-- Inject Dropdown -->
+                      <div class="ti-control-group">
+                        <label class="ti-control-label">Inject</label>
+                        <select
+                          v-model="ti.inject_ti"
+                          @change="onTiInjectChange(idx)"
+                          class="inject-select"
+                        >
+                          <option value="prompt">Prompt</option>
+                          <option value="negprompt">Negative Prompt</option>
+                          <option value="none">None</option>
+                        </select>
+                      </div>
+
+                      <!-- Trigger Words -->
+                      <div v-if="tiTrainedWords(ti).length > 0" class="ti-trigger-words">
+                        <span class="trigger-label">Trigger words:</span>
+                        <div class="trigger-chips">
+                          <button
+                            type="button"
+                            v-for="word in tiTrainedWords(ti)"
+                            :key="word"
+                            class="trigger-chip"
+                            @click="addTriggerWord(word)"
+                            :title="`Add '${word}' to prompt`"
+                          >
+                            {{ word }}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <!-- Post-Processing Section -->
               <h4 class="section-title">Post-Processing</h4>
               <div class="post-processing-section">
@@ -481,6 +578,17 @@
         @close="showLoraDetails = false"
         @removeLora="removeLoraFromDetails"
       />
+
+      <!-- Textual Inversion Details Overlay -->
+      <TextualInversionDetails
+        v-if="showTiDetails"
+        :ti="selectedTiForDetails"
+        :currentTis="form.tis"
+        :nsfwEnabled="settingsStore.workerPreferences?.nsfw || false"
+        @close="showTiDetails = false"
+        @addTi="addTi"
+        @removeTi="removeTiFromDetails"
+      />
     </div>
   </div>
 
@@ -508,6 +616,14 @@
     @add="addLora"
     @close="showLoraPicker = false"
   />
+
+  <!-- Textual Inversion Picker Modal -->
+  <TextualInversionPicker
+    v-if="showTiPicker"
+    :currentTis="form.tis"
+    @add="addTi"
+    @close="showTiPicker = false"
+  />
 </template>
 
 <script>
@@ -524,9 +640,13 @@ import ModelPicker from './ModelPicker.vue'
 import StylePicker from './StylePicker.vue'
 import LoraPicker from './LoraPicker.vue'
 import LoraDetails from './LoraDetails.vue'
-import { getLoraById, getLoraByVersionId } from '../api/civitai'
+import { getLoraById, getLoraByVersionId, getTiById, getTiByVersionId } from '../api/civitai'
 import { SavedLora } from '../models/Lora'
+import { SavedTextualInversion } from '../models/TextualInversion'
 import { useLoraRecent } from '../composables/useLoraCache'
+import { useTextualInversionRecent } from '../composables/useTextualInversionCache'
+import TextualInversionPicker from './TextualInversionPicker.vue'
+import TextualInversionDetails from './TextualInversionDetails.vue'
 
 export default {
   name: 'RequestGeneratorModal',
@@ -534,7 +654,9 @@ export default {
     ModelPicker,
     StylePicker,
     LoraPicker,
-    LoraDetails
+    LoraDetails,
+    TextualInversionPicker,
+    TextualInversionDetails
   },
   props: {
     initialSettings: {
@@ -555,6 +677,9 @@ export default {
     const showLoraPicker = ref(false)
     const showLoraDetails = ref(false)
     const selectedLoraForDetails = ref(null)
+    const showTiPicker = ref(false)
+    const showTiDetails = ref(false)
+    const selectedTiForDetails = ref(null)
     const aspectLocked = ref(false)
     const aspectRatio = ref(1)
     const selectedStyleName = ref('')
@@ -582,13 +707,15 @@ export default {
       faceFixStrength: 0.5,
       upscaler: 'none',
       stripBackground: false,
-      loras: []
+      loras: [],
+      tis: []
     })
 
     // Use composables
     const { models, fetchModels, getMostPopularModel } = useModelCache()
     const { kudosEstimate, estimating, estimateError, estimateKudos: estimateKudosComposable } = useKudosEstimation()
     const { addToRecent } = useLoraRecent()
+    const { addToRecent: addTiToRecent } = useTextualInversionRecent()
 
     // Load worker preferences from settings store
     settingsStore.loadWorkerPreferences()
@@ -755,6 +882,103 @@ export default {
       }
     }
 
+    // Textual Inversion handlers
+    const addTi = (ti) => {
+      console.log('[RequestGeneratorModal] addTi called with:', ti)
+      form.tis.push(ti)
+      console.log('[RequestGeneratorModal] form.tis after push:', form.tis)
+      estimateKudos()
+    }
+
+    const removeTi = (index) => {
+      form.tis.splice(index, 1)
+      estimateKudos()
+    }
+
+    const onTiStrengthChange = (index) => {
+      // Round to nearest 0.05
+      const rounded = Math.round(form.tis[index].strength * 20) / 20
+      form.tis[index].strength = parseFloat(rounded.toFixed(2))
+      estimateKudosDebounced()
+    }
+
+    const onTiInjectChange = (index) => {
+      estimateKudosDebounced()
+    }
+
+    const currentTiVersion = (ti) => {
+      if (!ti.modelVersions || ti.modelVersions.length === 0) {
+        return null
+      }
+      // Use loose equality to handle string/number type mismatch
+      return ti.modelVersions.find(v => v.id == ti.versionId) || ti.modelVersions[0]
+    }
+
+    const tiTrainedWords = (ti) => {
+      const version = currentTiVersion(ti)
+      if (!version || !version.trainedWords) {
+        return []
+      }
+      return version.trainedWords
+    }
+
+    const showTiInfo = async (ti) => {
+      // Fetch full model data to ensure we have complete metadata
+      try {
+        const fullModelData = await getTiById(ti.id)
+        selectedTiForDetails.value = fullModelData
+        showTiDetails.value = true
+      } catch (error) {
+        console.error('Error fetching full TI data:', error)
+        // Fallback to using the enriched data we already have
+        selectedTiForDetails.value = ti
+        showTiDetails.value = true
+      }
+    }
+
+    const removeTiFromDetails = (versionId) => {
+      // Find and remove the TI with the specific version ID
+      const index = form.tis.findIndex(ti =>
+        ti.versionId === versionId
+      )
+      if (index !== -1) {
+        removeTi(index)
+      }
+    }
+
+    // Helper to enrich minimal TI data with full CivitAI details
+    const enrichTis = async (tis) => {
+      if (!tis || !Array.isArray(tis) || tis.length === 0) {
+        return []
+      }
+
+      const enriched = []
+      for (const ti of tis) {
+        try {
+          // AI Horde format stores version ID in 'name' field
+          const versionId = ti.versionId || ti.name
+          console.log('[enrichTis] Processing TI:', { ti, versionId })
+          if (versionId) {
+            const fullData = await getTiByVersionId(versionId)
+            console.log('[enrichTis] Got fullData:', { modelId: fullData.id, name: fullData.name, versionCount: fullData.modelVersions?.length })
+            const enrichedTi = SavedTextualInversion.fromEmbedding(fullData, versionId, {
+              strength: ti.strength || 0.0,
+              // If inject_ti is not provided, default to 'none' (not 'prompt')
+              inject_ti: ti.inject_ti !== undefined ? ti.inject_ti : 'none'
+            })
+            console.log('[enrichTis] Created enrichedTi:', { versionId: enrichedTi.versionId, name: enrichedTi.name })
+            enriched.push(enrichedTi)
+          } else {
+            enriched.push(ti)
+          }
+        } catch (error) {
+          console.error(`Failed to enrich TI ${ti.versionId || ti.name}:`, error)
+          enriched.push(ti)
+        }
+      }
+      return enriched
+    }
+
     // Helper to enrich minimal LoRA data with full CivitAI details
     const enrichLoras = async (loras) => {
       if (!loras || !Array.isArray(loras) || loras.length === 0) {
@@ -877,6 +1101,14 @@ export default {
           // Note: Cache is automatically populated by server when enriching via CivitAI API
         } else {
           form.loras = []
+        }
+
+        // Load and enrich TIs
+        if (params.tis && params.tis.length > 0) {
+          form.tis = await enrichTis(params.tis)
+          // Note: Cache is automatically populated by server when enriching via CivitAI API
+        } else {
+          form.tis = []
         }
 
         // Load new post-processing structure
@@ -1201,6 +1433,28 @@ export default {
             }
           })
         }
+
+        // Add textual inversions to request params
+        if (form.tis && form.tis.length > 0) {
+          // Convert SavedTextualInversion objects to AI Horde format
+          params.params.tis = form.tis.map(ti => {
+            // If it's a SavedTextualInversion instance, use toHordeFormat()
+            if (ti.toHordeFormat && typeof ti.toHordeFormat === 'function') {
+              return ti.toHordeFormat()
+            }
+            // Fallback: manually create minimal format from plain object
+            const tiFormat = {
+              name: String(ti.versionId || ti.name),
+              strength: Number(ti.strength || 0.0),
+              is_version: true
+            }
+            // Only include inject_ti if it's not "none"
+            if (ti.inject_ti && ti.inject_ti !== 'none') {
+              tiFormat.inject_ti = ti.inject_ti
+            }
+            return tiFormat
+          })
+        }
       }
 
       // User's image quantity always overrides (even with style)
@@ -1258,6 +1512,18 @@ export default {
             }
           } catch (error) {
             console.error('Failed to update recent LoRAs:', error)
+          }
+        }
+
+        // Add TIs to recent list (after successful submission)
+        // Note: Cache is automatically populated by server when fetching via CivitAI API
+        if (form.tis && form.tis.length > 0) {
+          try {
+            for (const ti of form.tis) {
+              await addTiToRecent(ti)
+            }
+          } catch (error) {
+            console.error('Failed to update recent TIs:', error)
           }
         }
 
@@ -1379,11 +1645,15 @@ export default {
       estimating,
       kudosEstimate,
       estimateError,
+      settingsStore,
       showModelPicker,
       showStylePicker,
       showLoraPicker,
       showLoraDetails,
       selectedLoraForDetails,
+      showTiPicker,
+      showTiDetails,
+      selectedTiForDetails,
       aspectLocked,
       aspectRatioText,
       selectedStyleName,
@@ -1400,6 +1670,14 @@ export default {
       addTriggerWord,
       showLoraInfo,
       removeLoraFromDetails,
+      addTi,
+      removeTi,
+      onTiStrengthChange,
+      onTiInjectChange,
+      currentTiVersion,
+      tiTrainedWords,
+      showTiInfo,
+      removeTiFromDetails,
       applyStyle,
       removeStyle,
       onAspectLockToggle,
@@ -1486,6 +1764,29 @@ export default {
 }
 
 .loras-section .form-group:last-child > *:last-child {
+  margin-bottom: 0;
+}
+
+/* Textual Inversions Section */
+.tis-section {
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  margin-bottom: 1.2rem;
+}
+
+.tis-section .form-group {
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.tis-section .form-group:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-bottom: 0;
+}
+
+.tis-section .form-group:last-child > *:last-child {
   margin-bottom: 0;
 }
 
@@ -1895,6 +2196,112 @@ export default {
 
 .trigger-chip:hover {
   background: var(--color-primary-hover);
+}
+
+/* Textual Inversions Controls */
+.btn-browse-tis {
+  padding: 0.75rem 1.5rem;
+  background: var(--color-primary);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-browse-tis:hover {
+  background: var(--color-primary-hover);
+}
+
+.tis-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+
+.ti-card {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  padding: 1rem;
+}
+
+.ti-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.ti-title-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.ti-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--color-text-primary);
+}
+
+.ti-version {
+  font-size: 0.85rem;
+  color: var(--color-text-tertiary);
+}
+
+.ti-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.ti-control-group {
+  margin-bottom: 1rem;
+}
+
+.ti-control-group:last-of-type {
+  margin-bottom: 0;
+}
+
+.ti-control-label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--color-text-tertiary);
+  margin-bottom: 0.5rem;
+}
+
+.inject-select {
+  width: 100%;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.inject-select:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.inject-select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.ti-trigger-words {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .style-actions {
