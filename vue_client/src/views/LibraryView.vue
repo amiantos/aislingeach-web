@@ -613,13 +613,22 @@ export default {
         isPanelOpen.value = false
       }
 
-      // Handle Shift+click for range selection
-      if (event.shiftKey && lastSelectedIndex.value !== -1) {
+      // Handle Shift+click for range selection/deselection
+      // Only use range selection if there's a previous selection
+      if (event.shiftKey && lastSelectedIndex.value !== -1 && selectedImages.value.size > 0) {
         const start = Math.min(lastSelectedIndex.value, imageIndex)
         const end = Math.max(lastSelectedIndex.value, imageIndex)
 
+        // If the clicked image is already selected, deselect the range
+        // Otherwise, select the range
+        const shouldDeselect = selectedImages.value.has(image.uuid)
+
         for (let i = start; i <= end; i++) {
-          selectedImages.value.add(images.value[i].uuid)
+          if (shouldDeselect) {
+            selectedImages.value.delete(images.value[i].uuid)
+          } else {
+            selectedImages.value.add(images.value[i].uuid)
+          }
         }
       } else {
         // Toggle single selection
