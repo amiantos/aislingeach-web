@@ -51,29 +51,12 @@
       @delete="confirmDeleteAll"
     />
 
-    <!-- Batch Delete Confirmation Modal -->
-    <div v-if="showBatchDeleteModal" class="modal-overlay" @click.self="showBatchDeleteModal = false">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h2>Delete Images</h2>
-          <button class="btn-close" @click="showBatchDeleteModal = false">×</button>
-        </div>
-        <div class="modal-body">
-          <p>Are you sure you want to delete {{ selectedCount }} image{{ selectedCount !== 1 ? 's' : '' }}?</p>
-          <p class="warning-text">This action cannot be undone.</p>
-          <div class="option-buttons">
-            <button @click="batchDelete" class="btn btn-confirm">
-              <div class="btn-title">Yes, Delete Images</div>
-              <div class="btn-description">Permanently delete selected images</div>
-            </button>
-            <button @click="showBatchDeleteModal = false" class="btn btn-cancel">
-              <div class="btn-title">Cancel</div>
-              <div class="btn-description">Don't delete these images</div>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <BatchDeleteModal
+      v-if="showBatchDeleteModal"
+      :count="selectedCount"
+      @close="showBatchDeleteModal = false"
+      @delete="batchDelete"
+    />
 
     <div class="header">
       <div class="header-content">
@@ -157,11 +140,11 @@
         v-for="image in images"
         :key="image.uuid"
         class="image-item"
-        @click="isMultiSelectMode ? toggleImageSelection(image, $event) : viewImage(image)"
+        @click="handleImageClick(image, $event)"
         :class="{
           'hidden-locked': image.is_hidden && checkHiddenAuth && !checkHiddenAuth(),
-          'multi-select-mode': isMultiSelectMode,
-          'selected': isMultiSelectMode && selectedImages.has(image.uuid)
+          'multi-select-mode': isMultiSelectMode || selectedCount > 0,
+          'selected': selectedImages.has(image.uuid)
         }"
       >
         <div v-if="image.is_hidden && checkHiddenAuth && !checkHiddenAuth()" class="locked-placeholder">
@@ -175,20 +158,20 @@
           loading="lazy"
         />
 
-        <!-- Selection checkbox for multi-select mode -->
-        <div v-if="isMultiSelectMode" class="selection-checkbox">
+        <!-- Selection checkbox (show when in multi-select mode OR when there are selections) -->
+        <div v-if="isMultiSelectMode || selectedCount > 0" class="selection-checkbox">
           <div class="checkbox" :class="{ checked: selectedImages.has(image.uuid) }">
             <i v-if="selectedImages.has(image.uuid)" class="fa-solid fa-check"></i>
           </div>
         </div>
 
-        <div v-if="image.is_favorite && !isMultiSelectMode" class="favorite-badge" title="Favorited">
+        <div v-if="image.is_favorite && selectedCount === 0" class="favorite-badge" title="Favorited">
           <i class="fa-solid fa-star"></i>
         </div>
-        <div v-if="image.is_hidden && (!checkHiddenAuth || checkHiddenAuth()) && !isMultiSelectMode" class="hidden-badge" title="Hidden">
+        <div v-if="image.is_hidden && (!checkHiddenAuth || checkHiddenAuth()) && selectedCount === 0" class="hidden-badge" title="Hidden">
           <i class="fa-solid fa-eye-slash"></i>
         </div>
-        <div v-if="!isMultiSelectMode" class="image-overlay">
+        <div v-if="selectedCount === 0" class="image-overlay">
           <div class="image-info">
             <span class="date">{{ formatDate(image.date_created) }}</span>
           </div>
@@ -215,23 +198,23 @@
     />
 
     <!-- Floating Action Button (Settings) -->
-    <router-link v-if="!isMultiSelectMode" to="/settings" class="fab fab-settings" title="Settings">
+    <router-link v-if="selectedCount === 0" to="/settings" class="fab fab-settings" title="Settings">
       <i class="fa-solid fa-gear"></i>
     </router-link>
 
     <!-- Floating Action Button (New Request) -->
-    <button v-if="!isMultiSelectMode" @click="openNewRequest" class="fab fab-new" title="New Request">
+    <button v-if="selectedCount === 0" @click="openNewRequest" class="fab fab-new" title="New Request">
       <i class="fa-solid fa-plus"></i>
     </button>
 
-    <!-- Multi-Select Action Bar -->
-    <div v-if="isMultiSelectMode" class="multi-select-action-bar">
+    <!-- Multi-Select Action Bar (show when images are selected OR in dedicated multi-select mode) -->
+    <div v-if="selectedCount > 0 || isMultiSelectMode" class="multi-select-action-bar">
       <div class="action-bar-content">
         <div class="selection-info">
           <span class="count">{{ selectedCount }} selected</span>
         </div>
         <div class="action-buttons">
-          <button @click="toggleMultiSelectMode" class="btn-action btn-cancel" title="Cancel">
+          <button @click="isMultiSelectMode ? toggleMultiSelectMode() : (selectedImages.clear(), lastSelectedIndex = -1)" class="btn-action btn-cancel" title="Cancel">
             <i class="fa-solid fa-times"></i>
             <span>Cancel</span>
           </button>
@@ -260,7 +243,7 @@
     </div>
 
     <!-- Requests Panel Toggle Tab (moved to bottom) -->
-    <div v-if="!isMultiSelectMode" class="panel-tab" @click="togglePanel" :class="{ open: isPanelOpen }">
+    <div v-if="selectedCount === 0" class="panel-tab" @click="togglePanel" :class="{ open: isPanelOpen }">
       <div class="tab-content">
         <span class="status-dot" :class="requestStatusClass"></span>
         <span class="tab-text">Requests</span>
@@ -278,6 +261,7 @@ import ImageModal from '../components/ImageModal.vue'
 import RequestCard from '../components/RequestCard.vue'
 import DeleteRequestModal from '../components/DeleteRequestModal.vue'
 import DeleteAllRequestsModal from '../components/DeleteAllRequestsModal.vue'
+import BatchDeleteModal from '../components/BatchDeleteModal.vue'
 import KeywordsPanel from '../components/KeywordsPanel.vue'
 
 export default {
@@ -287,6 +271,7 @@ export default {
     RequestCard,
     DeleteRequestModal,
     DeleteAllRequestsModal,
+    BatchDeleteModal,
     KeywordsPanel
   },
   props: {
@@ -438,6 +423,28 @@ export default {
     const formatDate = (timestamp) => {
       const date = new Date(timestamp)
       return date.toLocaleDateString()
+    }
+
+    const handleImageClick = (image, event) => {
+      // In dedicated multi-select mode, always toggle selection
+      if (isMultiSelectMode.value) {
+        toggleImageSelection(image, event)
+        return
+      }
+
+      // Desktop multi-select: Ctrl/Cmd+Click or Shift+Click
+      const isCtrlOrCmd = event.ctrlKey || event.metaKey
+      const isShift = event.shiftKey
+
+      if (isCtrlOrCmd || isShift) {
+        // Enter selection mode automatically
+        event.preventDefault()
+        toggleImageSelection(image, event)
+        return
+      }
+
+      // Normal click - view image
+      viewImage(image)
     }
 
     const viewImage = (image) => {
@@ -601,6 +608,11 @@ export default {
     const toggleImageSelection = (image, event) => {
       const imageIndex = images.value.findIndex(img => img.uuid === image.uuid)
 
+      // Close requests panel when starting selection (if not in dedicated multi-select mode)
+      if (!isMultiSelectMode.value && selectedImages.value.size === 0) {
+        isPanelOpen.value = false
+      }
+
       // Handle Shift+click for range selection
       if (event.shiftKey && lastSelectedIndex.value !== -1) {
         const start = Math.min(lastSelectedIndex.value, imageIndex)
@@ -619,6 +631,11 @@ export default {
       }
 
       lastSelectedIndex.value = imageIndex
+
+      // Auto-clear lastSelectedIndex when all selections are cleared
+      if (selectedImages.value.size === 0) {
+        lastSelectedIndex.value = -1
+      }
     }
 
     const selectedCount = computed(() => selectedImages.value.size)
@@ -693,19 +710,23 @@ export default {
 
       try {
         const imageIds = Array.from(selectedImages.value)
+        const deleteCount = imageIds.length
+
         await imagesApi.batchUpdate(imageIds, { isTrashed: true })
 
         // Remove deleted images from the array
         images.value = images.value.filter(img => !selectedImages.value.has(img.uuid))
+
+        // Update total count
+        totalCount.value = Math.max(0, totalCount.value - deleteCount)
 
         // Clear selection and exit mode
         selectedImages.value.clear()
         isMultiSelectMode.value = false
         lastSelectedIndex.value = -1
 
-        // Refresh keywords and fetch images to update count
+        // Refresh keywords
         fetchKeywords()
-        fetchImages()
       } catch (error) {
         console.error('Error batch deleting images:', error)
         alert('Failed to delete some images. Please try again.')
@@ -738,11 +759,14 @@ export default {
     const batchUnfavorite = async () => {
       try {
         const imageIds = Array.from(selectedImages.value)
+        const removeCount = imageIds.length
+
         await imagesApi.batchUpdate(imageIds, { isFavorite: false })
 
         // Update images in the array, or remove if in favorites-only view
         if (filters.value.showFavoritesOnly) {
           images.value = images.value.filter(img => !selectedImages.value.has(img.uuid))
+          totalCount.value = Math.max(0, totalCount.value - removeCount)
         } else {
           images.value.forEach(img => {
             if (selectedImages.value.has(img.uuid)) {
@@ -756,9 +780,6 @@ export default {
         lastSelectedIndex.value = -1
 
         fetchKeywords()
-        if (filters.value.showFavoritesOnly) {
-          fetchImages()
-        }
       } catch (error) {
         console.error('Error batch unfavoriting images:', error)
         alert('Failed to unfavorite some images. Please try again.')
@@ -768,11 +789,14 @@ export default {
     const batchHide = async () => {
       try {
         const imageIds = Array.from(selectedImages.value)
+        const removeCount = imageIds.length
+
         await imagesApi.batchUpdate(imageIds, { isHidden: true })
 
         // Update images in the array, or remove if not showing hidden
         if (!filters.value.showHidden) {
           images.value = images.value.filter(img => !selectedImages.value.has(img.uuid))
+          totalCount.value = Math.max(0, totalCount.value - removeCount)
         } else {
           images.value.forEach(img => {
             if (selectedImages.value.has(img.uuid)) {
@@ -786,9 +810,6 @@ export default {
         lastSelectedIndex.value = -1
 
         fetchKeywords()
-        if (!filters.value.showHidden) {
-          fetchImages()
-        }
       } catch (error) {
         console.error('Error batch hiding images:', error)
         alert('Failed to hide some images. Please try again.')
@@ -798,11 +819,14 @@ export default {
     const batchUnhide = async () => {
       try {
         const imageIds = Array.from(selectedImages.value)
+        const removeCount = imageIds.length
+
         await imagesApi.batchUpdate(imageIds, { isHidden: false })
 
         // Update images in the array, or remove if in hidden-only view
         if (filters.value.showHidden && !filters.value.showFavoritesOnly) {
           images.value = images.value.filter(img => !selectedImages.value.has(img.uuid))
+          totalCount.value = Math.max(0, totalCount.value - removeCount)
         } else {
           images.value.forEach(img => {
             if (selectedImages.value.has(img.uuid)) {
@@ -816,9 +840,6 @@ export default {
         lastSelectedIndex.value = -1
 
         fetchKeywords()
-        if (filters.value.showHidden && !filters.value.showFavoritesOnly) {
-          fetchImages()
-        }
       } catch (error) {
         console.error('Error batch unhiding images:', error)
         alert('Failed to unhide some images. Please try again.')
@@ -1223,6 +1244,7 @@ export default {
       searchQuery,
       getThumbnailUrl,
       formatDate,
+      handleImageClick,
       viewImage,
       closeImage,
       navigateImage,
@@ -2010,12 +2032,5 @@ export default {
 .request-card-item:not(:last-child) {
   border-bottom: 1px solid #333;
   padding-bottom: 1rem;
-}
-
-/* Warning text for batch delete modal */
-.warning-text {
-  color: var(--color-danger);
-  font-size: 0.875rem;
-  margin-top: 0.5rem;
 }
 </style>
