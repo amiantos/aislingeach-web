@@ -449,8 +449,8 @@ export default {
       const scrollHeight = document.documentElement.scrollHeight
       const clientHeight = window.innerHeight
 
-      // Load more when scrolled near bottom
-      if (scrollTop + clientHeight >= scrollHeight - 500) {
+      // Load more when scrolled near bottom (2 viewport heights early)
+      if (scrollTop + clientHeight >= scrollHeight - (clientHeight * 2)) {
         fetchImages(true)
       }
     }
