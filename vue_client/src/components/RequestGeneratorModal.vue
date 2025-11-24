@@ -1514,6 +1514,18 @@ export default {
           }
         }
 
+        // Add TIs to recent list (after successful submission)
+        // Note: Cache is automatically populated by server when fetching via CivitAI API
+        if (form.tis && form.tis.length > 0) {
+          try {
+            for (const ti of form.tis) {
+              await addTiToRecent(ti)
+            }
+          } catch (error) {
+            console.error('Failed to update recent TIs:', error)
+          }
+        }
+
         emit('submit')
       } catch (error) {
         console.error('Error submitting request:', error)
