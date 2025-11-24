@@ -121,6 +121,50 @@ router.patch('/:id', (req, res) => {
   }
 });
 
+// Batch update images
+router.put('/batch', (req, res) => {
+  try {
+    const { imageIds, updates } = req.body;
+
+    if (!Array.isArray(imageIds) || imageIds.length === 0) {
+      return res.status(400).json({ error: 'imageIds must be a non-empty array' });
+    }
+
+    if (!updates || typeof updates !== 'object') {
+      return res.status(400).json({ error: 'updates object is required' });
+    }
+
+    const updateData = {};
+    if (updates.isFavorite !== undefined) updateData.isFavorite = updates.isFavorite;
+    if (updates.isHidden !== undefined) updateData.isHidden = updates.isHidden;
+    if (updates.isTrashed !== undefined) {
+      updateData.isTrashed = updates.isTrashed;
+      if (updates.isTrashed) updateData.dateTrashed = Date.now();
+    }
+
+    const results = imageIds.map(id => {
+      try {
+        const image = GeneratedImage.update(id, updateData);
+        return { id, success: true, image };
+      } catch (error) {
+        console.error(`Error updating image ${id}:`, error);
+        return { id, success: false, error: error.message };
+      }
+    });
+
+    const successCount = results.filter(r => r.success).length;
+    res.json({
+      success: true,
+      updated: successCount,
+      total: imageIds.length,
+      results
+    });
+  } catch (error) {
+    console.error('Error in batch update:', error);
+    res.status(500).json({ error: 'Failed to batch update images' });
+  }
+});
+
 // Delete image
 router.delete('/:id', (req, res) => {
   try {

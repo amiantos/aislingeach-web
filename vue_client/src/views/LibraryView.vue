@@ -51,6 +51,13 @@
       @delete="confirmDeleteAll"
     />
 
+    <BatchDeleteModal
+      v-if="showBatchDeleteModal"
+      :count="selectedCount"
+      @close="showBatchDeleteModal = false"
+      @delete="batchDelete"
+    />
+
     <div class="header">
       <div class="header-content">
         <div class="header-left">
@@ -104,6 +111,9 @@
                 <i class="fa-solid fa-ellipsis-vertical"></i>
               </button>
               <div v-if="showMenu" class="menu-dropdown">
+                <div class="menu-item" @click="toggleMultiSelectMode">
+                  <span>Multi-Select Mode</span>
+                </div>
                 <div class="menu-item" @click="toggleHiddenImages">
                   <span>{{ filters.showHidden ? 'Hide Hidden Images' : 'Show Hidden Images' }}</span>
                 </div>
@@ -130,8 +140,12 @@
         v-for="image in images"
         :key="image.uuid"
         class="image-item"
-        @click="viewImage(image)"
-        :class="{ 'hidden-locked': image.is_hidden && checkHiddenAuth && !checkHiddenAuth() }"
+        @click="handleImageClick(image, $event)"
+        :class="{
+          'hidden-locked': image.is_hidden && checkHiddenAuth && !checkHiddenAuth(),
+          'multi-select-mode': isMultiSelectMode || selectedCount > 0,
+          'selected': selectedImages.has(image.uuid)
+        }"
       >
         <div v-if="image.is_hidden && checkHiddenAuth && !checkHiddenAuth()" class="locked-placeholder">
           <i class="fa-solid fa-lock"></i>
@@ -143,13 +157,21 @@
           :alt="image.prompt_simple"
           loading="lazy"
         />
-        <div v-if="image.is_favorite" class="favorite-badge" title="Favorited">
+
+        <!-- Selection checkbox (show when in multi-select mode OR when there are selections) -->
+        <div v-if="isMultiSelectMode || selectedCount > 0" class="selection-checkbox">
+          <div class="checkbox" :class="{ checked: selectedImages.has(image.uuid) }">
+            <i v-if="selectedImages.has(image.uuid)" class="fa-solid fa-check"></i>
+          </div>
+        </div>
+
+        <div v-if="image.is_favorite && selectedCount === 0" class="favorite-badge" title="Favorited">
           <i class="fa-solid fa-star"></i>
         </div>
-        <div v-if="image.is_hidden && (!checkHiddenAuth || checkHiddenAuth())" class="hidden-badge" title="Hidden">
+        <div v-if="image.is_hidden && (!checkHiddenAuth || checkHiddenAuth()) && selectedCount === 0" class="hidden-badge" title="Hidden">
           <i class="fa-solid fa-eye-slash"></i>
         </div>
-        <div class="image-overlay">
+        <div v-if="selectedCount === 0" class="image-overlay">
           <div class="image-info">
             <span class="date">{{ formatDate(image.date_created) }}</span>
           </div>
@@ -176,17 +198,52 @@
     />
 
     <!-- Floating Action Button (Settings) -->
-    <router-link to="/settings" class="fab fab-settings" title="Settings">
+    <router-link v-if="selectedCount === 0" to="/settings" class="fab fab-settings" title="Settings">
       <i class="fa-solid fa-gear"></i>
     </router-link>
 
     <!-- Floating Action Button (New Request) -->
-    <button @click="openNewRequest" class="fab fab-new" title="New Request">
+    <button v-if="selectedCount === 0" @click="openNewRequest" class="fab fab-new" title="New Request">
       <i class="fa-solid fa-plus"></i>
     </button>
 
+    <!-- Multi-Select Action Bar (show when images are selected OR in dedicated multi-select mode) -->
+    <div v-if="selectedCount > 0 || isMultiSelectMode" class="multi-select-action-bar">
+      <div class="action-bar-content">
+        <div class="selection-info">
+          <span class="count">{{ selectedCount }} selected</span>
+        </div>
+        <div class="action-buttons">
+          <button @click="isMultiSelectMode ? toggleMultiSelectMode() : (selectedImages.clear(), lastSelectedIndex = -1)" class="btn-action btn-cancel" title="Cancel">
+            <i class="fa-solid fa-times"></i>
+            <span>Cancel</span>
+          </button>
+          <button @click="batchFavorite" :disabled="selectedCount === 0" class="btn-action btn-favorite" title="Favorite">
+            <i class="fa-solid fa-star"></i>
+            <span>Favorite</span>
+          </button>
+          <button @click="batchUnfavorite" :disabled="selectedCount === 0" class="btn-action btn-unfavorite" title="Unfavorite">
+            <i class="fa-regular fa-star"></i>
+            <span>Unfavorite</span>
+          </button>
+          <button @click="batchHide" :disabled="selectedCount === 0" class="btn-action btn-hide" title="Hide">
+            <i class="fa-solid fa-eye-slash"></i>
+            <span>Hide</span>
+          </button>
+          <button @click="batchUnhide" :disabled="selectedCount === 0" class="btn-action btn-unhide" title="Unhide">
+            <i class="fa-solid fa-eye"></i>
+            <span>Unhide</span>
+          </button>
+          <button @click="showBatchDeleteModal = true" :disabled="selectedCount === 0" class="btn-action btn-delete" title="Delete">
+            <i class="fa-solid fa-trash"></i>
+            <span>Delete</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Requests Panel Toggle Tab (moved to bottom) -->
-    <div class="panel-tab" @click="togglePanel" :class="{ open: isPanelOpen }">
+    <div v-if="selectedCount === 0" class="panel-tab" @click="togglePanel" :class="{ open: isPanelOpen }">
       <div class="tab-content">
         <span class="status-dot" :class="requestStatusClass"></span>
         <span class="tab-text">Requests</span>
@@ -204,6 +261,7 @@ import ImageModal from '../components/ImageModal.vue'
 import RequestCard from '../components/RequestCard.vue'
 import DeleteRequestModal from '../components/DeleteRequestModal.vue'
 import DeleteAllRequestsModal from '../components/DeleteAllRequestsModal.vue'
+import BatchDeleteModal from '../components/BatchDeleteModal.vue'
 import KeywordsPanel from '../components/KeywordsPanel.vue'
 
 export default {
@@ -213,6 +271,7 @@ export default {
     RequestCard,
     DeleteRequestModal,
     DeleteAllRequestsModal,
+    BatchDeleteModal,
     KeywordsPanel
   },
   props: {
@@ -254,6 +313,11 @@ export default {
     // Menu state
     const showMenu = ref(false)
     const menuContainer = ref(null)
+
+    // Multi-select mode state
+    const isMultiSelectMode = ref(false)
+    const selectedImages = ref(new Set())
+    const lastSelectedIndex = ref(-1)
 
     // Initialize image polling composable
     const imagePolling = useImagePolling({
@@ -359,6 +423,28 @@ export default {
     const formatDate = (timestamp) => {
       const date = new Date(timestamp)
       return date.toLocaleDateString()
+    }
+
+    const handleImageClick = (image, event) => {
+      // In dedicated multi-select mode, always toggle selection
+      if (isMultiSelectMode.value) {
+        toggleImageSelection(image, event)
+        return
+      }
+
+      // Desktop multi-select: Ctrl/Cmd+Click or Shift+Click
+      const isCtrlOrCmd = event.ctrlKey || event.metaKey
+      const isShift = event.shiftKey
+
+      if (isCtrlOrCmd || isShift) {
+        // Enter selection mode automatically
+        event.preventDefault()
+        toggleImageSelection(image, event)
+        return
+      }
+
+      // Normal click - view image
+      viewImage(image)
     }
 
     const viewImage = (image) => {
@@ -504,6 +590,65 @@ export default {
       fetchKeywords()
     }
 
+    // Multi-select mode functions
+    const toggleMultiSelectMode = () => {
+      isMultiSelectMode.value = !isMultiSelectMode.value
+      showMenu.value = false
+
+      if (!isMultiSelectMode.value) {
+        // Clear selection when exiting mode
+        selectedImages.value.clear()
+        lastSelectedIndex.value = -1
+      } else {
+        // Close requests panel when entering multi-select mode
+        isPanelOpen.value = false
+      }
+    }
+
+    const toggleImageSelection = (image, event) => {
+      const imageIndex = images.value.findIndex(img => img.uuid === image.uuid)
+
+      // Close requests panel when starting selection (if not in dedicated multi-select mode)
+      if (!isMultiSelectMode.value && selectedImages.value.size === 0) {
+        isPanelOpen.value = false
+      }
+
+      // Handle Shift+click for range selection/deselection
+      // Only use range selection if there's a previous selection
+      if (event.shiftKey && lastSelectedIndex.value !== -1 && selectedImages.value.size > 0) {
+        const start = Math.min(lastSelectedIndex.value, imageIndex)
+        const end = Math.max(lastSelectedIndex.value, imageIndex)
+
+        // If the clicked image is already selected, deselect the range
+        // Otherwise, select the range
+        const shouldDeselect = selectedImages.value.has(image.uuid)
+
+        for (let i = start; i <= end; i++) {
+          if (shouldDeselect) {
+            selectedImages.value.delete(images.value[i].uuid)
+          } else {
+            selectedImages.value.add(images.value[i].uuid)
+          }
+        }
+      } else {
+        // Toggle single selection
+        if (selectedImages.value.has(image.uuid)) {
+          selectedImages.value.delete(image.uuid)
+        } else {
+          selectedImages.value.add(image.uuid)
+        }
+      }
+
+      lastSelectedIndex.value = imageIndex
+
+      // Auto-clear lastSelectedIndex when all selections are cleared
+      if (selectedImages.value.size === 0) {
+        lastSelectedIndex.value = -1
+      }
+    }
+
+    const selectedCount = computed(() => selectedImages.value.size)
+
     const navigateImage = (direction) => {
       const currentIndex = currentImageIndex.value
       let newIndex = currentIndex + direction
@@ -563,6 +708,150 @@ export default {
         fetchKeywords()
       } catch (error) {
         console.error('Error deleting image:', error)
+      }
+    }
+
+    // Batch action handlers
+    const showBatchDeleteModal = ref(false)
+
+    const batchDelete = async () => {
+      showBatchDeleteModal.value = false
+
+      try {
+        const imageIds = Array.from(selectedImages.value)
+        const deleteCount = imageIds.length
+
+        await imagesApi.batchUpdate(imageIds, { isTrashed: true })
+
+        // Remove deleted images from the array
+        images.value = images.value.filter(img => !selectedImages.value.has(img.uuid))
+
+        // Update total count
+        totalCount.value = Math.max(0, totalCount.value - deleteCount)
+
+        // Clear selection and exit mode
+        selectedImages.value.clear()
+        isMultiSelectMode.value = false
+        lastSelectedIndex.value = -1
+
+        // Refresh keywords
+        fetchKeywords()
+      } catch (error) {
+        console.error('Error batch deleting images:', error)
+        alert('Failed to delete some images. Please try again.')
+      }
+    }
+
+    const batchFavorite = async () => {
+      try {
+        const imageIds = Array.from(selectedImages.value)
+        await imagesApi.batchUpdate(imageIds, { isFavorite: true })
+
+        // Update images in the array
+        images.value.forEach(img => {
+          if (selectedImages.value.has(img.uuid)) {
+            img.is_favorite = 1
+          }
+        })
+
+        // Clear selection
+        selectedImages.value.clear()
+        lastSelectedIndex.value = -1
+
+        fetchKeywords()
+      } catch (error) {
+        console.error('Error batch favoriting images:', error)
+        alert('Failed to favorite some images. Please try again.')
+      }
+    }
+
+    const batchUnfavorite = async () => {
+      try {
+        const imageIds = Array.from(selectedImages.value)
+        const removeCount = imageIds.length
+
+        await imagesApi.batchUpdate(imageIds, { isFavorite: false })
+
+        // Update images in the array, or remove if in favorites-only view
+        if (filters.value.showFavoritesOnly) {
+          images.value = images.value.filter(img => !selectedImages.value.has(img.uuid))
+          totalCount.value = Math.max(0, totalCount.value - removeCount)
+        } else {
+          images.value.forEach(img => {
+            if (selectedImages.value.has(img.uuid)) {
+              img.is_favorite = 0
+            }
+          })
+        }
+
+        // Clear selection
+        selectedImages.value.clear()
+        lastSelectedIndex.value = -1
+
+        fetchKeywords()
+      } catch (error) {
+        console.error('Error batch unfavoriting images:', error)
+        alert('Failed to unfavorite some images. Please try again.')
+      }
+    }
+
+    const batchHide = async () => {
+      try {
+        const imageIds = Array.from(selectedImages.value)
+        const removeCount = imageIds.length
+
+        await imagesApi.batchUpdate(imageIds, { isHidden: true })
+
+        // Update images in the array, or remove if not showing hidden
+        if (!filters.value.showHidden) {
+          images.value = images.value.filter(img => !selectedImages.value.has(img.uuid))
+          totalCount.value = Math.max(0, totalCount.value - removeCount)
+        } else {
+          images.value.forEach(img => {
+            if (selectedImages.value.has(img.uuid)) {
+              img.is_hidden = 1
+            }
+          })
+        }
+
+        // Clear selection
+        selectedImages.value.clear()
+        lastSelectedIndex.value = -1
+
+        fetchKeywords()
+      } catch (error) {
+        console.error('Error batch hiding images:', error)
+        alert('Failed to hide some images. Please try again.')
+      }
+    }
+
+    const batchUnhide = async () => {
+      try {
+        const imageIds = Array.from(selectedImages.value)
+        const removeCount = imageIds.length
+
+        await imagesApi.batchUpdate(imageIds, { isHidden: false })
+
+        // Update images in the array, or remove if in hidden-only view
+        if (filters.value.showHidden && !filters.value.showFavoritesOnly) {
+          images.value = images.value.filter(img => !selectedImages.value.has(img.uuid))
+          totalCount.value = Math.max(0, totalCount.value - removeCount)
+        } else {
+          images.value.forEach(img => {
+            if (selectedImages.value.has(img.uuid)) {
+              img.is_hidden = 0
+            }
+          })
+        }
+
+        // Clear selection
+        selectedImages.value.clear()
+        lastSelectedIndex.value = -1
+
+        fetchKeywords()
+      } catch (error) {
+        console.error('Error batch unhiding images:', error)
+        alert('Failed to unhide some images. Please try again.')
       }
     }
 
@@ -964,6 +1253,7 @@ export default {
       searchQuery,
       getThumbnailUrl,
       formatDate,
+      handleImageClick,
       viewImage,
       closeImage,
       navigateImage,
@@ -999,7 +1289,19 @@ export default {
       toggleFavorites,
       toggleMenu,
       toggleHiddenImages,
-      checkHiddenAuth
+      checkHiddenAuth,
+      // Multi-select mode
+      isMultiSelectMode,
+      selectedImages,
+      selectedCount,
+      toggleMultiSelectMode,
+      toggleImageSelection,
+      showBatchDeleteModal,
+      batchDelete,
+      batchFavorite,
+      batchUnfavorite,
+      batchHide,
+      batchUnhide
     }
   }
 }
@@ -1378,6 +1680,50 @@ export default {
   opacity: 1;
 }
 
+/* Multi-select mode styles */
+.image-item.multi-select-mode {
+  cursor: default;
+}
+
+.image-item.multi-select-mode:hover img {
+  transform: none;
+}
+
+.image-item.selected {
+  outline: 3px solid var(--color-primary);
+  outline-offset: -3px;
+}
+
+.selection-checkbox {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.checkbox {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--overlay-darker);
+  border: 2px solid var(--color-border-lighter);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.checkbox.checked {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.checkbox i {
+  color: white;
+  font-size: 1rem;
+}
+
 .image-info {
   color: var(--color-text-primary);
   font-size: 0.85rem;
@@ -1443,6 +1789,105 @@ export default {
 
 .library-view.panel-open .fab:active {
   transform: translateY(calc(-1 * var(--panel-height))) scale(0.95);
+}
+
+/* Multi-Select Action Bar */
+.multi-select-action-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--color-bg-tertiary);
+  border-top: 1px solid var(--color-border);
+  z-index: 45;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.action-bar-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 2rem;
+  gap: 1rem;
+  max-width: 100%;
+}
+
+.selection-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.selection-info .count {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.action-buttons {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  flex: 1;
+}
+
+.btn-action {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.btn-action:hover:not(:disabled) {
+  background: var(--color-bg-secondary);
+  border-color: var(--color-border-lighter);
+}
+
+.btn-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-action i {
+  font-size: 1rem;
+}
+
+.btn-action.btn-cancel {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+}
+
+.btn-action.btn-cancel:hover {
+  background: var(--color-bg-secondary);
+}
+
+.btn-action.btn-delete {
+  background: var(--color-danger);
+  border-color: var(--color-danger);
+  color: white;
+}
+
+.btn-action.btn-delete:hover:not(:disabled) {
+  background: var(--color-danger-hover);
+  border-color: var(--color-danger-hover);
+}
+
+.btn-action.btn-favorite {
+  color: var(--color-warning);
+}
+
+.btn-action.btn-hide {
+  color: var(--color-text-tertiary);
 }
 
 /* Requests Panel Tab */
