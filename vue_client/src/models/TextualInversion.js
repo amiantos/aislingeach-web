@@ -141,7 +141,17 @@ export class SavedTextualInversion extends Embedding {
    * @returns {SavedTextualInversion} New SavedTextualInversion instance
    */
   static fromEmbedding(embedding, versionId, options = {}) {
-    const selectedVersion = embedding.modelVersions.find(v => v.id === versionId)
+    console.log('[SavedTextualInversion.fromEmbedding] Input:', {
+      embeddingId: embedding.id,
+      embeddingName: embedding.name,
+      versionId,
+      versionIdType: typeof versionId,
+      versionCount: embedding.modelVersions?.length,
+      versionIds: embedding.modelVersions?.map(v => ({ id: v.id, type: typeof v.id }))
+    })
+    // Handle type mismatch: version IDs might be strings or numbers
+    const selectedVersion = embedding.modelVersions.find(v => v.id == versionId)
+    console.log('[SavedTextualInversion.fromEmbedding] selectedVersion:', selectedVersion ? { id: selectedVersion.id, name: selectedVersion.name } : null)
 
     return new SavedTextualInversion({
       ...embedding,

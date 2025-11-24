@@ -910,7 +910,8 @@ export default {
       if (!ti.modelVersions || ti.modelVersions.length === 0) {
         return null
       }
-      return ti.modelVersions.find(v => v.id === ti.versionId) || ti.modelVersions[0]
+      // Use loose equality to handle string/number type mismatch
+      return ti.modelVersions.find(v => v.id == ti.versionId) || ti.modelVersions[0]
     }
 
     const tiTrainedWords = (ti) => {
@@ -947,12 +948,15 @@ export default {
         try {
           // AI Horde format stores version ID in 'name' field
           const versionId = ti.versionId || ti.name
+          console.log('[enrichTis] Processing TI:', { ti, versionId })
           if (versionId) {
             const fullData = await getTiByVersionId(versionId)
+            console.log('[enrichTis] Got fullData:', { modelId: fullData.id, name: fullData.name, versionCount: fullData.modelVersions?.length })
             const enrichedTi = SavedTextualInversion.fromEmbedding(fullData, versionId, {
               strength: ti.strength || 0.0,
               inject_ti: ti.inject_ti || 'prompt'
             })
+            console.log('[enrichTis] Created enrichedTi:', { versionId: enrichedTi.versionId, name: enrichedTi.name })
             enriched.push(enrichedTi)
           } else {
             enriched.push(ti)

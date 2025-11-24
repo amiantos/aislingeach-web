@@ -217,9 +217,10 @@ export default {
   data() {
     // If this TI is already added to the request, default to that version
     // Otherwise, default to the first version in the list
+    // Use loose equality to handle string/number type mismatch
     const addedTi = this.currentTis.find(t =>
-      t.id === this.ti.id ||
-      this.ti.modelVersions?.some(v => v.id === t.versionId)
+      t.id == this.ti.id ||
+      this.ti.modelVersions?.some(v => v.id == t.versionId)
     )
 
     const defaultVersionId = addedTi?.versionId || this.ti.versionId || this.ti.modelVersions?.[0]?.id || null
@@ -231,14 +232,16 @@ export default {
   },
   computed: {
     selectedVersion() {
-      return this.ti.modelVersions?.find(v => v.id === this.selectedVersionId) ||
+      // Use loose equality to handle string/number type mismatch
+      return this.ti.modelVersions?.find(v => v.id == this.selectedVersionId) ||
              this.ti.modelVersions?.[0]
     },
 
     isDeprecatedVersion() {
       // Check if the selected version ID doesn't exist in the available versions
       if (!this.selectedVersionId || !this.ti.modelVersions) return false
-      return !this.ti.modelVersions.some(v => v.id === this.selectedVersionId)
+      // Use loose equality to handle string/number type mismatch
+      return !this.ti.modelVersions.some(v => v.id == this.selectedVersionId)
     },
 
     selectedVersionImages() {
