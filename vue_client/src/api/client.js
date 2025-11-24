@@ -84,6 +84,10 @@ export const imagesApi = {
     return apiClient.delete(`/images/${id}`)
   },
 
+  batchUpdate(imageIds, updates) {
+    return apiClient.put('/images/batch', { imageIds, updates })
+  },
+
   estimate(params) {
     return apiClient.post('/requests/estimate', { params })
   }
