@@ -173,19 +173,55 @@
       <p class="hint">Try adjusting your filters or generate some images</p>
     </div>
 
-    <div v-else class="image-grid" ref="gridContainer" :class="{
-      'masonry-view': settingsStore.galleryPreferences.viewMode === 'masonry',
-      'size-small': settingsStore.galleryPreferences.imageSize === 'small',
-      'size-medium': settingsStore.galleryPreferences.imageSize === 'medium',
-      'size-large': settingsStore.galleryPreferences.imageSize === 'large'
-    }">
+    <!-- Masonry View -->
+    <masonry-wall
+      v-else-if="settingsStore.galleryPreferences.viewMode === 'masonry'"
+      :items="images"
+      :column-width="masonryColumnWidth"
+      :gap="4"
+      ref="gridContainer"
+    >
+      <template #default="{ item: image }">
+        <div
+          class="image-item masonry-item"
+          @click="viewImage(image)"
+          :class="{ 'hidden-locked': image.is_hidden && checkHiddenAuth && !checkHiddenAuth() }"
+          :style="{ aspectRatio: `${getImageDimensions(image).width} / ${getImageDimensions(image).height}` }"
+        >
+          <div v-if="image.is_hidden && checkHiddenAuth && !checkHiddenAuth()" class="locked-placeholder">
+            <i class="fa-solid fa-lock"></i>
+            <span>Hidden</span>
+          </div>
+          <img
+            v-else
+            :src="getImageUrl(image)"
+            :alt="image.prompt_simple"
+            loading="lazy"
+            :style="{ aspectRatio: `${getImageDimensions(image).width} / ${getImageDimensions(image).height}` }"
+          />
+          <div v-if="image.is_favorite" class="favorite-badge" title="Favorited">
+            <i class="fa-solid fa-star"></i>
+          </div>
+          <div v-if="image.is_hidden && (!checkHiddenAuth || checkHiddenAuth())" class="hidden-badge" title="Hidden">
+            <i class="fa-solid fa-eye-slash"></i>
+          </div>
+          <div class="image-overlay">
+            <div class="image-info">
+              <span class="date">{{ formatDate(image.date_created) }}</span>
+            </div>
+          </div>
+        </div>
+      </template>
+    </masonry-wall>
+
+    <!-- Grid View -->
+    <div v-else class="image-grid" ref="gridContainer">
       <div
         v-for="image in images"
         :key="image.uuid"
         class="image-item"
         @click="viewImage(image)"
         :class="{ 'hidden-locked': image.is_hidden && checkHiddenAuth && !checkHiddenAuth() }"
-        :style="getMasonryStyle(image)"
       >
         <div v-if="image.is_hidden && checkHiddenAuth && !checkHiddenAuth()" class="locked-placeholder">
           <i class="fa-solid fa-lock"></i>
@@ -255,6 +291,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { imagesApi, requestsApi, albumsApi } from '../api/client.js'
 import { useImagePolling } from '../composables/useImagePolling.js'
 import { useSettingsStore } from '../stores/settingsStore.js'
+import MasonryWall from '@yeger/vue-masonry-wall'
 import ImageModal from '../components/ImageModal.vue'
 import RequestCard from '../components/RequestCard.vue'
 import DeleteRequestModal from '../components/DeleteRequestModal.vue'
@@ -268,7 +305,8 @@ export default {
     RequestCard,
     DeleteRequestModal,
     DeleteAllRequestsModal,
-    KeywordsPanel
+    KeywordsPanel,
+    MasonryWall
   },
   props: {
     imageId: String // selected image ID from URL
@@ -313,6 +351,12 @@ export default {
 
     // Gallery view preferences
     settingsStore.loadGalleryPreferences()
+
+    // Computed property for masonry column width based on size preference
+    const masonryColumnWidth = computed(() => {
+      const size = settingsStore.galleryPreferences.imageSize
+      return size === 'small' ? 200 : size === 'medium' ? 350 : 512
+    })
 
     // Initialize image polling composable
     const imagePolling = useImagePolling({
@@ -1053,12 +1097,12 @@ export default {
       const dimensions = getImageDimensions(image)
       const aspectRatio = dimensions.height / dimensions.width
 
-      // Calculate how many 10px rows this image should span
-      // Base it on a 200px width, then scale by aspect ratio
+      // Calculate how many 1px rows this image should span
+      // Base it on column width, then scale by aspect ratio
       const baseWidth = settingsStore.galleryPreferences.imageSize === 'small' ? 200 :
                         settingsStore.galleryPreferences.imageSize === 'medium' ? 350 : 512
       const height = Math.ceil(baseWidth * aspectRatio)
-      const span = Math.ceil(height / 10) + 1 // +1 for gap
+      const span = Math.ceil(height) + 4 // +4 for gap
 
       return span
     }
@@ -1069,10 +1113,8 @@ export default {
       }
 
       const dimensions = getImageDimensions(image)
-      const span = getGridRowSpan(image)
 
       return {
-        gridRowEnd: `span ${span}`,
         aspectRatio: `${dimensions.width} / ${dimensions.height}`
       }
     }
@@ -1133,7 +1175,8 @@ export default {
       getImageUrl,
       getImageDimensions,
       getGridRowSpan,
-      getMasonryStyle
+      getMasonryStyle,
+      masonryColumnWidth
     }
   }
 }
@@ -1481,25 +1524,6 @@ export default {
   background: var(--color-bg-base);
 }
 
-/* Masonry layout using CSS Grid */
-.image-grid.masonry-view {
-  display: grid;
-  gap: 4px;
-  align-items: start;
-}
-
-.image-grid.masonry-view.size-small {
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-}
-
-.image-grid.masonry-view.size-medium {
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-}
-
-.image-grid.masonry-view.size-large {
-  grid-template-columns: repeat(auto-fill, minmax(512px, 1fr));
-}
-
 .image-item {
   position: relative;
   aspect-ratio: 1;
@@ -1508,9 +1532,10 @@ export default {
   background: var(--color-surface);
 }
 
-/* Masonry image items - use grid-row span based on aspect ratio */
-.masonry-view .image-item {
-  height: auto; /* Let height be determined by aspect ratio */
+/* Masonry items */
+.masonry-item {
+  aspect-ratio: auto;
+  width: 100%;
 }
 
 .image-item img {
@@ -1520,9 +1545,10 @@ export default {
   transition: transform 0.3s;
 }
 
-.masonry-view .image-item img {
-  height: auto; /* Let image maintain its natural aspect ratio */
+.masonry-item img {
+  height: auto;
   display: block;
+  object-fit: cover;
 }
 
 .image-item:hover img {
