@@ -922,9 +922,18 @@ export default {
       return version.trainedWords
     }
 
-    const showTiInfo = (ti) => {
-      selectedTiForDetails.value = ti
-      showTiDetails.value = true
+    const showTiInfo = async (ti) => {
+      // Fetch full model data to ensure we have complete metadata
+      try {
+        const fullModelData = await getTiById(ti.id)
+        selectedTiForDetails.value = fullModelData
+        showTiDetails.value = true
+      } catch (error) {
+        console.error('Error fetching full TI data:', error)
+        // Fallback to using the enriched data we already have
+        selectedTiForDetails.value = ti
+        showTiDetails.value = true
+      }
     }
 
     const removeTiFromDetails = (versionId) => {
