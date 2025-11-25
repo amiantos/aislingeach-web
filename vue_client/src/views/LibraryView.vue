@@ -343,6 +343,7 @@ export default {
     const shouldOpenRequestsPanel = inject('shouldOpenRequestsPanel')
     const checkHiddenAuth = inject('checkHiddenAuth')
     const requestHiddenAccess = inject('requestHiddenAccess')
+    const clearHiddenAuth = inject('clearHiddenAuth')
 
     const openNewRequest = () => {
       if (openRequestModal) {
@@ -589,6 +590,10 @@ export default {
         sessionStorage.setItem('showHidden', 'true')
       } else {
         sessionStorage.removeItem('showHidden')
+        // Clear authentication when manually disabling hidden images mode
+        if (clearHiddenAuth) {
+          clearHiddenAuth()
+        }
       }
 
       offset.value = 0
@@ -1122,7 +1127,13 @@ export default {
       // Load showHidden from sessionStorage (persists across navigation)
       const savedShowHidden = sessionStorage.getItem('showHidden')
       if (savedShowHidden === 'true') {
-        filters.value.showHidden = true
+        // Only restore showHidden if user still has authentication
+        if (checkHiddenAuth && checkHiddenAuth()) {
+          filters.value.showHidden = true
+        } else {
+          // Clear sessionStorage if no longer authenticated
+          sessionStorage.removeItem('showHidden')
+        }
       }
     }
 

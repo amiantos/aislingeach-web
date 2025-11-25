@@ -156,6 +156,10 @@ export default {
       pendingHiddenAccess.value = null
     }
 
+    const clearHiddenAuth = () => {
+      hiddenAuthState.value.isAuthenticated = false
+    }
+
     const handleCloseRequestModal = () => {
       showRequestModal.value = false
       // Clear the initial settings when modal closes
@@ -213,6 +217,7 @@ export default {
     provide('shouldOpenRequestsPanel', shouldOpenRequestsPanel)
     provide('checkHiddenAuth', checkHiddenAuth)
     provide('requestHiddenAccess', requestHiddenAccess)
+    provide('clearHiddenAuth', clearHiddenAuth)
 
     return {
       showRequestModal,
