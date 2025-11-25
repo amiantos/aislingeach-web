@@ -1,6 +1,7 @@
 import axios from 'axios'
 
-const baseURL = import.meta.env.PROD ? '/api' : 'http://localhost:8005/api'
+const devApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8005/api'
+const baseURL = import.meta.env.PROD ? '/api' : devApiUrl
 
 const apiClient = axios.create({
   baseURL,
@@ -153,10 +154,6 @@ export const settingsApi = {
 export const stylesApi = {
   getAll() {
     return apiClient.get('/styles')
-  },
-
-  getByCategory(category) {
-    return apiClient.get(`/styles/category/${category}`)
   },
 
   refresh() {

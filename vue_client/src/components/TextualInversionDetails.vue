@@ -3,16 +3,17 @@
     <div class="ti-details-container">
       <!-- Header -->
       <div class="details-header">
-        <button class="btn-back" @click="$emit('close')">
-          <i class="fas fa-arrow-left"></i> Back
+        <button class="btn-back" @click="$emit('close')" aria-label="Go back">
+          <i class="fas fa-arrow-left" aria-hidden="true"></i> Back
         </button>
         <h2 class="details-title">Textual Inversion Details</h2>
         <button
           class="btn-favorite"
           @click="toggleFavorite"
           :title="isFavorite ? 'Remove from favorites' : 'Add to favorites'"
+          :aria-label="isFavorite ? 'Remove from favorites' : 'Add to favorites'"
         >
-          <i :class="isFavorite ? 'fas fa-heart' : 'far fa-heart'"></i>
+          <i :class="isFavorite ? 'fas fa-heart' : 'far fa-heart'" aria-hidden="true"></i>
         </button>
       </div>
 
@@ -173,24 +174,17 @@
 </template>
 
 <script>
+import DOMPurify from 'dompurify'
 import { SavedTextualInversion } from '../models/TextualInversion'
 import { useTextualInversionFavorites } from '../composables/useTextualInversionCache'
 
-// Simple HTML sanitizer to prevent XSS
+// Sanitize HTML to prevent XSS while allowing safe formatting tags
 function sanitizeHtml(html) {
   if (!html) return ''
-
-  // Create a temporary div to parse HTML
-  const temp = document.createElement('div')
-  temp.textContent = html // This escapes all HTML
-
-  // For basic formatting, we can allow some safe tags
-  // This is a simple approach - for production, consider using DOMPurify
-  const allowedTags = ['p', 'br', 'strong', 'em', 'ul', 'ol', 'li', 'a', 'h1', 'h2', 'h3', 'h4']
-
-  // For now, just return escaped text to be safe
-  // If you need HTML rendering, install: npm install dompurify
-  return html
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'b', 'i', 'ul', 'ol', 'li', 'a', 'h1', 'h2', 'h3', 'h4', 'pre', 'code'],
+    ALLOWED_ATTR: ['href', 'target', 'rel']
+  })
 }
 
 export default {

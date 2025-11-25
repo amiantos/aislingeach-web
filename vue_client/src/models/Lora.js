@@ -5,21 +5,8 @@
  * Stores all necessary metadata and provides conversion to AI Horde API format.
  */
 
-export class ModelVersion {
-  constructor(params = {}) {
-    this.id = params.id || ''
-    this.modelId = params.modelId || ''
-    this.name = params.name || ''
-    this.baseModel = params.baseModel || ''
-    this.description = params.description || ''
-    this.downloadUrl = params.downloadUrl || ''
-    this.files = params.files || []
-    this.images = params.images || []
-    this.trainedWords = params.trainedWords || []
-  }
-}
-
-export class Embedding {
+// Base class for CivitAI embeddings (used internally)
+class Embedding {
   constructor(params = {}) {
     this.id = params.id || ''
     this.description = params.description || ''

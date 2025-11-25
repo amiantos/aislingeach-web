@@ -32,6 +32,42 @@ router.get('/:id', (req, res) => {
   }
 });
 
+// Validate request params structure
+function validateRequestParams(params) {
+  const errors = [];
+
+  // Required numeric fields
+  if (typeof params.width !== 'number' || params.width <= 0) {
+    errors.push('width must be a positive number');
+  }
+  if (typeof params.height !== 'number' || params.height <= 0) {
+    errors.push('height must be a positive number');
+  }
+  if (typeof params.steps !== 'number' || params.steps <= 0) {
+    errors.push('steps must be a positive number');
+  }
+  if (typeof params.cfg_scale !== 'number' || params.cfg_scale < 0) {
+    errors.push('cfg_scale must be a non-negative number');
+  }
+
+  // Required string fields
+  if (typeof params.sampler_name !== 'string' || !params.sampler_name.trim()) {
+    errors.push('sampler_name is required');
+  }
+
+  // Required array fields
+  if (!Array.isArray(params.models) || params.models.length === 0) {
+    errors.push('models must be a non-empty array');
+  }
+
+  // Optional but validated if present
+  if (params.n !== undefined && (typeof params.n !== 'number' || params.n <= 0)) {
+    errors.push('n must be a positive number');
+  }
+
+  return errors;
+}
+
 // Create a new request
 router.post('/', (req, res) => {
   try {
@@ -39,6 +75,12 @@ router.post('/', (req, res) => {
 
     if (!prompt || !params) {
       return res.status(400).json({ error: 'Missing required fields: prompt, params' });
+    }
+
+    // Validate params structure
+    const validationErrors = validateRequestParams(params);
+    if (validationErrors.length > 0) {
+      return res.status(400).json({ error: 'Invalid params', details: validationErrors });
     }
 
     const request = queueManager.addRequest({ prompt, params });

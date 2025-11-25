@@ -48,19 +48,6 @@ export function combinePrompts(positive, negative, delimiter = DEFAULT_DELIMITER
 }
 
 /**
- * Check if a prompt contains the delimiter
- * @param {string} prompt - The prompt to check
- * @param {string} delimiter - The delimiter to check for (default '###')
- * @returns {boolean} True if prompt contains delimiter
- */
-export function hasDelimiter(prompt, delimiter = DEFAULT_DELIMITER) {
-  if (!prompt || typeof prompt !== 'string') {
-    return false
-  }
-  return prompt.includes(delimiter)
-}
-
-/**
  * Replace {np} placeholder in template with negative prompt
  * Handles three cases:
  * 1. If negative is empty, remove {np} placeholders
@@ -91,16 +78,4 @@ export function replaceNegativePlaceholder(template, negative, delimiter = DEFAU
 
   // Replace {np} with ### + negative prompt
   return template.replace(/{np}/g, ` ${delimiter} ${negative}`)
-}
-
-/**
- * Clean up excessive whitespace in prompts
- * @param {string} prompt - The prompt to clean
- * @returns {string} Cleaned prompt
- */
-export function cleanPrompt(prompt) {
-  if (!prompt || typeof prompt !== 'string') {
-    return ''
-  }
-  return prompt.trim().replace(/\s+/g, ' ')
 }

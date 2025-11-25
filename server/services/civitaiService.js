@@ -296,19 +296,17 @@ export async function searchLoras({
     // Build Meilisearch query
     const searchQuery = buildMeilisearchQuery({ query, page, limit, baseModelFilters, nsfw, sort });
 
-    // CACHE DISABLED FOR DEBUGGING
-    // const cacheKey = getCacheKey({ query, page, limit, baseModelFilters, nsfw, sort });
-    // const cached = CivitaiSearchCache.get(cacheKey);
-    // if (cached && (Date.now() - cached.cached_at < CACHE_TTL)) {
-    //   console.log(`[CivitAI] Cache hit for search: ${cacheKey}`);
-    //   return {
-    //     ...cached.result_data,
-    //     cached: true
-    //   };
-    // }
+    // Check cache first
+    const cacheKey = getCacheKey({ query, page, limit, baseModelFilters, nsfw, sort });
+    const cached = CivitaiSearchCache.get(cacheKey);
+    if (cached && (Date.now() - cached.cached_at < CACHE_TTL)) {
+      return {
+        ...cached.result_data,
+        cached: true
+      };
+    }
 
     // Fetch from CivitAI Meilisearch API
-    console.log(`[CivitAI] Fetching from Meilisearch API with query:`, JSON.stringify(searchQuery, null, 2));
     const response = await fetch(SEARCH_API_URL, {
       method: 'POST',
       headers: {
@@ -336,9 +334,6 @@ export async function searchLoras({
 
     const data = await response.json();
 
-    // Log the actual response for debugging
-    console.log(`[CivitAI] Meilisearch API returned:`, JSON.stringify(data, null, 2));
-
     // Extract results from Meilisearch response
     const results = data.results && data.results[0] ? data.results[0] : { hits: [], estimatedTotalHits: 0 };
     const hits = results.hits || [];
@@ -347,32 +342,29 @@ export async function searchLoras({
     // Transform hits to match expected format
     const items = hits.map(transformMeilisearchHit);
 
-    // Log transformed data
-    console.log(`[CivitAI] Transformed ${items.length} items`);
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(totalHits / limit);
+    const hasNextPage = page < totalPages;
+    const metadata = {
+      currentPage: page,
+      pageSize: limit,
+      totalItems: totalHits,
+      totalPages: totalPages,
+      nextPage: hasNextPage ? page + 1 : null,
+      prevPage: page > 1 ? page - 1 : null
+    };
 
-    // CACHE DISABLED FOR DEBUGGING
-    // const cacheKey = getCacheKey({ query, page, limit, baseModelFilters, nsfw, sort });
-    // CivitaiSearchCache.set(cacheKey, { items, metadata });
+    // Cache the results
+    CivitaiSearchCache.set(cacheKey, { items, metadata });
 
     // Cache all model versions in LoraCache for long-term persistence
     for (const model of items) {
       cacheModelVersions(model);
     }
 
-    // Calculate pagination metadata
-    const totalPages = Math.ceil(totalHits / limit);
-    const hasNextPage = page < totalPages;
-
     return {
       items: items,
-      metadata: {
-        currentPage: page,
-        pageSize: limit,
-        totalItems: totalHits,
-        totalPages: totalPages,
-        nextPage: hasNextPage ? page + 1 : null,
-        prevPage: page > 1 ? page - 1 : null
-      },
+      metadata: metadata,
       cached: false
     };
   } catch (error) {
@@ -390,7 +382,6 @@ export async function getLoraById(modelId) {
     const cached = CivitaiSearchCache.get(cacheKey);
 
     if (cached && (Date.now() - cached.cached_at < CACHE_TTL)) {
-      console.log(`[CivitAI] Cache hit for model: ${modelId}`);
       return {
         ...cached.result_data,
         cached: true
@@ -398,7 +389,6 @@ export async function getLoraById(modelId) {
     }
 
     // Fetch from CivitAI API
-    console.log(`[CivitAI] Fetching model from API: ${modelId}`);
     const response = await fetch(`${API_BASE_URL}/models/${modelId}`);
 
     if (!response.ok) {
@@ -432,7 +422,6 @@ export async function getLoraByVersionId(versionId) {
     // Check long-term LoraCache first
     const loraCached = LoraCache.get(String(versionId));
     if (loraCached) {
-      console.log(`[CivitAI] LoraCache hit for version: ${versionId}`);
       return {
         ...loraCached.full_metadata,
         cached: true
@@ -444,15 +433,13 @@ export async function getLoraByVersionId(versionId) {
     const cached = CivitaiSearchCache.get(cacheKey);
 
     if (cached && (Date.now() - cached.cached_at < CACHE_TTL)) {
-      console.log(`[CivitAI] SearchCache hit for version: ${versionId}`);
       return {
         ...cached.result_data,
         cached: true
       };
     }
 
-    // Step 1: Fetch version data to get model ID
-    console.log(`[CivitAI] Fetching version from API: ${versionId}`);
+    // Fetch version data to get model ID
     const versionResponse = await fetch(`${API_BASE_URL}/model-versions/${versionId}`);
 
     if (!versionResponse.ok) {
@@ -506,7 +493,6 @@ export async function searchTextualInversions({
     });
 
     // Fetch from CivitAI Meilisearch API
-    console.log(`[CivitAI] Fetching TIs from Meilisearch API with query:`, JSON.stringify(searchQuery, null, 2));
     const response = await fetch(SEARCH_API_URL, {
       method: 'POST',
       headers: {
@@ -542,8 +528,6 @@ export async function searchTextualInversions({
     // Transform hits to match expected format
     const items = hits.map(transformMeilisearchHit);
 
-    console.log(`[CivitAI] Transformed ${items.length} TI items`);
-
     // Cache all model versions in TiCache for long-term persistence
     for (const model of items) {
       cacheTiVersions(model);
@@ -577,7 +561,6 @@ export async function searchTextualInversions({
  */
 export async function getTiById(modelId) {
   try {
-    console.log(`[CivitAI] Fetching TI model ${modelId} (using shared models endpoint)`);
     // Use getLoraById since the API endpoint is identical for all model types
     const data = await getLoraById(modelId);
 
@@ -600,7 +583,6 @@ export async function getTiByVersionId(versionId) {
     // Check long-term TiCache first
     const tiCached = TiCache.get(String(versionId));
     if (tiCached) {
-      console.log(`[CivitAI] TiCache hit for version: ${versionId}`);
       return {
         ...tiCached.full_metadata,
         cached: true
@@ -612,15 +594,13 @@ export async function getTiByVersionId(versionId) {
     const cached = CivitaiSearchCache.get(cacheKey);
 
     if (cached && (Date.now() - cached.cached_at < CACHE_TTL)) {
-      console.log(`[CivitAI] SearchCache hit for TI version: ${versionId}`);
       return {
         ...cached.result_data,
         cached: true
       };
     }
 
-    // Step 1: Fetch version data to get model ID
-    console.log(`[CivitAI] Fetching TI version from API: ${versionId}`);
+    // Fetch version data to get model ID
     const versionResponse = await fetch(`${API_BASE_URL}/model-versions/${versionId}`);
 
     if (!versionResponse.ok) {

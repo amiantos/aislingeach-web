@@ -50,6 +50,39 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Centralized error handler middleware
+// Must be after all routes but before the catch-all
+app.use((err, req, res, next) => {
+  console.error('[Error Handler]', {
+    message: err.message,
+    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+    path: req.path,
+    method: req.method
+  });
+
+  // Handle specific error types
+  if (err.name === 'ValidationError') {
+    return res.status(400).json({
+      error: 'Validation failed',
+      message: err.message
+    });
+  }
+
+  if (err.name === 'UnauthorizedError') {
+    return res.status(401).json({
+      error: 'Unauthorized',
+      message: err.message
+    });
+  }
+
+  // Default error response
+  const statusCode = err.statusCode || err.status || 500;
+  res.status(statusCode).json({
+    error: statusCode === 500 ? 'Internal server error' : err.message,
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+  });
+});
+
 // Serve Vue client in production
 if (process.env.NODE_ENV === 'production') {
   const clientPath = path.join(__dirname, '../vue_client/dist');
