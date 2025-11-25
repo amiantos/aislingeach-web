@@ -60,24 +60,12 @@
 
     <div class="header">
       <div class="header-content">
-        <div class="header-left">
-          <h2>{{ galleryTitle }}</h2>
-        </div>
+        <div class="header-row-1">
+          <div class="header-left">
+            <h2>{{ galleryTitle }}</h2>
+          </div>
 
-        <div class="header-controls">
-          <div class="right-controls">
-            <!-- Active Filters -->
-            <div v-if="filters.requestId || filters.keywords.length > 0" class="filter-chips">
-              <div v-if="filters.requestId" class="filter-chip">
-                <span>Request: {{ filters.requestId.substring(0, 8) }}</span>
-                <button @click="clearFilter('requestId')" class="chip-remove">×</button>
-              </div>
-              <div v-for="keyword in filters.keywords" :key="keyword" class="filter-chip">
-                <span>{{ keyword }}</span>
-                <button @click="clearFilter('keywords', keyword)" class="chip-remove">×</button>
-              </div>
-            </div>
-
+          <div class="header-controls">
             <!-- Search Bar -->
             <div class="search-bar">
               <input
@@ -120,6 +108,26 @@
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- Active Filters Row -->
+        <div v-if="filters.requestId || filters.keywords.length > 0" class="header-row-2">
+          <div class="filter-chips-container">
+            <div class="filter-chips">
+              <div v-if="filters.requestId" class="filter-chip">
+                <span>Request: {{ filters.requestId.substring(0, 8) }}</span>
+                <button @click="clearFilter('requestId')" class="chip-remove">×</button>
+              </div>
+              <div v-for="keyword in filters.keywords" :key="keyword" class="filter-chip">
+                <span>{{ keyword }}</span>
+                <button @click="clearFilter('keywords', keyword)" class="chip-remove">×</button>
+              </div>
+            </div>
+          </div>
+          <!-- Clear All Button -->
+          <button v-if="filters.keywords.length > 1" @click="clearAllFilters" class="btn-clear-filters" title="Clear all filters">
+            Clear All
+          </button>
         </div>
       </div>
 
@@ -1344,10 +1352,24 @@ export default {
 
 .header-content {
   display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.5rem 2rem;
+}
+
+.header-row-1 {
+  display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem 2rem;
   gap: 2rem;
+}
+
+.header-row-2 {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #2a2a2a;
 }
 
 .header-left {
@@ -1391,19 +1413,42 @@ export default {
   gap: 1rem;
   flex: 1;
   min-width: 0;
+  justify-content: flex-end;
 }
 
-.right-controls {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-left: auto;
+.filter-chips-container {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #444 transparent;
+}
+
+.filter-chips-container::-webkit-scrollbar {
+  height: 6px;
+}
+
+.filter-chips-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.filter-chips-container::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 3px;
+}
+
+.filter-chips-container::-webkit-scrollbar-thumb:hover {
+  background: #555;
 }
 
 .filter-chips {
   display: flex;
   gap: 0.5rem;
-  flex-wrap: wrap;
+  align-items: center;
+  padding-bottom: 0.25rem;
+  flex-wrap: nowrap;
 }
 
 .filter-chip {
@@ -1416,6 +1461,8 @@ export default {
   border-radius: 16px;
   font-size: 0.875rem;
   color: var(--color-text-primary);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .chip-remove {
@@ -1432,6 +1479,25 @@ export default {
 
 .chip-remove:hover {
   color: var(--color-danger);
+}
+
+.btn-clear-filters {
+  padding: 0.4rem 0.75rem;
+  background: var(--color-danger);
+  border: 1px solid var(--color-danger);
+  border-radius: 16px;
+  font-size: 0.875rem;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.btn-clear-filters:hover {
+  background: #d32f2f;
+  border-color: #d32f2f;
 }
 
 .search-bar {
@@ -2053,5 +2119,32 @@ export default {
 .request-card-item:not(:last-child) {
   border-bottom: 1px solid #333;
   padding-bottom: 1rem;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .header-row-1 {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .header-left {
+    order: 1;
+  }
+
+  .header-controls {
+    order: 2;
+    justify-content: flex-start;
+  }
+
+  .header-row-2 {
+    order: 3;
+    flex-wrap: wrap;
+  }
+
+  .filter-chips {
+    flex-wrap: wrap;
+  }
 }
 </style>
