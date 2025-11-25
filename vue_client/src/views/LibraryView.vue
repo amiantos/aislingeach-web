@@ -2135,16 +2135,21 @@ export default {
 
   .header-controls {
     order: 2;
-    justify-content: flex-start;
+    justify-content: center;
+  }
+
+  .search-bar {
+    flex: 1;
+  }
+
+  .search-input {
+    flex: 1;
+    width: auto;
   }
 
   .header-row-2 {
     order: 3;
-    flex-wrap: wrap;
-  }
-
-  .filter-chips {
-    flex-wrap: wrap;
   }
 }
+
 </style>
