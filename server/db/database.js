@@ -20,6 +20,21 @@ const dbPath = join(dataDir, 'aislingeach.db');
 const db = new Database(dbPath);
 db.pragma('journal_mode = WAL');
 
+// Migration helper: Add column if it doesn't exist
+function addColumnIfNotExists(table, column, type, description = '') {
+  try {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+    console.log(`Migration: Added ${column} column to ${table} table${description ? ` (${description})` : ''}`);
+    return true;
+  } catch (error) {
+    // Column already exists, ignore error
+    if (!error.message.includes('duplicate column name')) {
+      console.error(`Migration error adding ${column} to ${table}:`, error.message);
+    }
+    return false;
+  }
+}
+
 // Initialize database schema
 function initDatabase() {
   // HordeRequest table
@@ -93,75 +108,17 @@ function initDatabase() {
     )
   `);
 
-  // Migration: Add worker_preferences column if it doesn't exist
-  try {
-    db.exec(`ALTER TABLE user_settings ADD COLUMN worker_preferences TEXT`);
-    console.log('Migration: Added worker_preferences column to user_settings table');
-  } catch (error) {
-    // Column already exists, ignore error
-    if (!error.message.includes('duplicate column name')) {
-      console.error('Migration error:', error.message);
-    }
-  }
+  // Run migrations for user_settings table
+  addColumnIfNotExists('user_settings', 'worker_preferences', 'TEXT');
+  addColumnIfNotExists('user_settings', 'hidden_pin_hash', 'TEXT');
+  addColumnIfNotExists('user_settings', 'hidden_pin_enabled', 'INTEGER', 'NULL=not configured, 1=enabled, 0=declined');
+  addColumnIfNotExists('user_settings', 'favorite_loras', 'TEXT', 'JSON array of favorite LoRA IDs');
+  addColumnIfNotExists('user_settings', 'recent_loras', 'TEXT', 'JSON array of recently used LoRAs');
+  addColumnIfNotExists('user_settings', 'favorite_tis', 'TEXT', 'JSON array of favorite TI IDs');
+  addColumnIfNotExists('user_settings', 'recent_tis', 'TEXT', 'JSON array of recently used TIs');
 
-  // Migration: Add hidden_pin_hash column if it doesn't exist
-  try {
-    db.exec(`ALTER TABLE user_settings ADD COLUMN hidden_pin_hash TEXT`);
-    console.log('Migration: Added hidden_pin_hash column to user_settings table');
-  } catch (error) {
-    // Column already exists, ignore error
-    if (!error.message.includes('duplicate column name')) {
-      console.error('Migration error:', error.message);
-    }
-  }
-
-  // Migration: Add hidden_pin_enabled column if it doesn't exist
-  // Values: NULL = not configured, 1 = enabled, 0 = explicitly declined
-  try {
-    db.exec(`ALTER TABLE user_settings ADD COLUMN hidden_pin_enabled INTEGER`);
-    console.log('Migration: Added hidden_pin_enabled column to user_settings table');
-  } catch (error) {
-    // Column already exists, ignore error
-    if (!error.message.includes('duplicate column name')) {
-      console.error('Migration error:', error.message);
-    }
-  }
-
-  // Migration: Add favorite_loras column if it doesn't exist
-  // Stores JSON array of favorite LoRA IDs from CivitAI
-  try {
-    db.exec(`ALTER TABLE user_settings ADD COLUMN favorite_loras TEXT`);
-    console.log('Migration: Added favorite_loras column to user_settings table');
-  } catch (error) {
-    // Column already exists, ignore error
-    if (!error.message.includes('duplicate column name')) {
-      console.error('Migration error:', error.message);
-    }
-  }
-
-  // Migration: Add recent_loras column if it doesn't exist
-  // Stores JSON array of recently used LoRAs with full metadata
-  try {
-    db.exec(`ALTER TABLE user_settings ADD COLUMN recent_loras TEXT`);
-    console.log('Migration: Added recent_loras column to user_settings table');
-  } catch (error) {
-    // Column already exists, ignore error
-    if (!error.message.includes('duplicate column name')) {
-      console.error('Migration error:', error.message);
-    }
-  }
-
-  // Migration: Add horde_id column to horde_requests table
-  // Stores the AI Horde request ID for status checking and recovery
-  try {
-    db.exec(`ALTER TABLE horde_requests ADD COLUMN horde_id TEXT`);
-    console.log('Migration: Added horde_id column to horde_requests table');
-  } catch (error) {
-    // Column already exists, ignore error
-    if (!error.message.includes('duplicate column name')) {
-      console.error('Migration error:', error.message);
-    }
-  }
+  // Run migrations for horde_requests table
+  addColumnIfNotExists('horde_requests', 'horde_id', 'TEXT', 'AI Horde request ID for status checking');
 
   // LoRA metadata cache table
   db.exec(`
@@ -193,30 +150,6 @@ function initDatabase() {
       cached_at INTEGER NOT NULL
     )
   `);
-
-  // Migration: Add favorite_tis column if it doesn't exist
-  // Stores JSON array of favorite Textual Inversion IDs from CivitAI
-  try {
-    db.exec(`ALTER TABLE user_settings ADD COLUMN favorite_tis TEXT`);
-    console.log('Migration: Added favorite_tis column to user_settings table');
-  } catch (error) {
-    // Column already exists, ignore error
-    if (!error.message.includes('duplicate column name')) {
-      console.error('Migration error:', error.message);
-    }
-  }
-
-  // Migration: Add recent_tis column if it doesn't exist
-  // Stores JSON array of recently used Textual Inversions with minimal metadata
-  try {
-    db.exec(`ALTER TABLE user_settings ADD COLUMN recent_tis TEXT`);
-    console.log('Migration: Added recent_tis column to user_settings table');
-  } catch (error) {
-    // Column already exists, ignore error
-    if (!error.message.includes('duplicate column name')) {
-      console.error('Migration error:', error.message);
-    }
-  }
 
   // Create indexes
   db.exec(`

@@ -84,19 +84,20 @@
               class="btn-favorites-toggle"
               :class="{ active: filters.showFavoritesOnly }"
               title="Show Favorites"
+              aria-label="Show Favorites"
             >
-              <i class="fa-solid fa-star"></i>
+              <i class="fa-solid fa-star" aria-hidden="true"></i>
             </button>
 
             <!-- Albums Modal Toggle Button -->
-            <button @click="toggleAlbumsModal" class="btn-albums-toggle" title="Albums">
-              <i class="fa-solid fa-images"></i>
+            <button @click="toggleAlbumsModal" class="btn-albums-toggle" title="Albums" aria-label="Open Albums">
+              <i class="fa-solid fa-images" aria-hidden="true"></i>
             </button>
 
             <!-- Overflow Menu -->
             <div class="menu-container" ref="menuContainer">
-              <button @click="toggleMenu" class="btn-menu" title="More options">
-                <i class="fa-solid fa-ellipsis-vertical"></i>
+              <button @click="toggleMenu" class="btn-menu" title="More options" aria-label="More options">
+                <i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i>
               </button>
               <div v-if="showMenu" class="menu-dropdown">
                 <div class="menu-item" @click="toggleMultiSelectMode">
@@ -116,11 +117,11 @@
             <div class="filter-chips">
               <div v-if="filters.requestId" class="filter-chip">
                 <span>Request: {{ filters.requestId.substring(0, 8) }}</span>
-                <button @click="clearFilter('requestId')" class="chip-remove">×</button>
+                <button @click="clearFilter('requestId')" class="chip-remove" aria-label="Remove request filter">×</button>
               </div>
               <div v-for="keyword in filters.keywords" :key="keyword" class="filter-chip">
                 <span>{{ keyword }}</span>
-                <button @click="clearFilter('keywords', keyword)" class="chip-remove">×</button>
+                <button @click="clearFilter('keywords', keyword)" class="chip-remove" :aria-label="'Remove ' + keyword + ' filter'">×</button>
               </div>
             </div>
           </div>
@@ -718,6 +719,7 @@ export default {
         fetchKeywords()
       } catch (error) {
         console.error('Error deleting image:', error)
+        alert('Failed to delete image. Please try again.')
       }
     }
 
