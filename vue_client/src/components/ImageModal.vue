@@ -1,15 +1,15 @@
 <template>
   <div class="lightbox-overlay" @click.self="$emit('close')">
     <div class="lightbox-container">
-      <!-- Close button -->
-      <button class="btn-close" @click="$emit('close')" title="Close (Esc)">
-        <i class="fa-solid fa-xmark"></i>
-      </button>
-
       <!-- Main content area -->
       <div class="lightbox-content">
         <!-- Left side: Image + Filmstrip -->
         <div class="image-area">
+          <!-- Close button (inside image area to avoid sidebar overlap) -->
+          <button class="btn-close" @click="$emit('close')" title="Close (Esc)">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+
           <!-- Main image display -->
           <div class="image-display" :class="{ 'protected': isProtected }">
             <img :src="imageUrl" :alt="image.prompt_simple" />
@@ -62,21 +62,33 @@
         <aside v-if="!isProtected" class="inspector-sidebar">
           <div class="inspector-content">
             <!-- Prompt Section -->
-            <AccordionSection title="Prompt" icon="fa-font" :defaultOpen="true">
+            <AccordionSection title="Prompt" icon="fa-font" :defaultOpen="true" :forceOpen="isDesktop">
               <div class="prompt-display">
                 <p v-if="image.prompt_simple">{{ image.prompt_simple }}</p>
                 <p v-else class="no-data">No prompt available</p>
               </div>
             </AccordionSection>
 
+            <!-- Negative Prompt Section (only if there is one) -->
+            <AccordionSection
+              v-if="negativePrompt"
+              title="Negative Prompt"
+              icon="fa-ban"
+              :defaultOpen="false"
+            >
+              <div class="prompt-display negative">
+                <p>{{ negativePrompt }}</p>
+              </div>
+            </AccordionSection>
+
             <!-- Generation Settings Section -->
-            <AccordionSection title="Generation" icon="fa-sliders" :defaultOpen="true">
+            <AccordionSection title="Generation" icon="fa-sliders" :defaultOpen="true" :forceOpen="isDesktop">
               <InspectorGrid v-if="generationSettings.length" :items="generationSettings" />
               <p v-else class="no-data">No generation data available</p>
             </AccordionSection>
 
             <!-- Model & LoRAs Section -->
-            <AccordionSection title="Model & LoRAs" icon="fa-cube" :defaultOpen="false">
+            <AccordionSection title="Model & LoRAs" icon="fa-cube" :defaultOpen="false" :forceOpen="isDesktop">
               <div class="model-info">
                 <span class="model-label">Model</span>
                 <span class="model-name">{{ modelName }}</span>
@@ -101,69 +113,64 @@
             </AccordionSection>
 
             <!-- Dimensions Section -->
-            <AccordionSection title="Dimensions" icon="fa-expand" :defaultOpen="false">
+            <AccordionSection title="Dimensions" icon="fa-expand" :defaultOpen="false" :forceOpen="isDesktop">
               <InspectorGrid v-if="dimensionSettings.length" :items="dimensionSettings" />
               <p v-else class="no-data">No dimension data available</p>
             </AccordionSection>
 
             <!-- Info Section -->
-            <AccordionSection title="Info" icon="fa-info-circle" :defaultOpen="false">
+            <AccordionSection title="Info" icon="fa-info-circle" :defaultOpen="false" :forceOpen="isDesktop">
               <InspectorGrid :items="metadataInfo" />
             </AccordionSection>
 
             <!-- Actions Section -->
-            <AccordionSection title="Actions" icon="fa-gear" :defaultOpen="true">
-              <!-- Quick actions row (icon buttons) -->
-              <div class="quick-actions">
-                <button
-                  @click="toggleFavorite"
-                  :class="['btn-quick', { 'active': isFavorite }]"
-                  :title="isFavorite ? 'Remove from favorites' : 'Add to favorites'"
-                >
-                  <i class="fa-star" :class="isFavorite ? 'fa-solid' : 'fa-regular'"></i>
-                </button>
-                <button
-                  @click="toggleHidden"
-                  :class="['btn-quick', 'btn-quick-hide', { 'active': isHidden }]"
-                  :title="isHidden ? 'Unhide image' : 'Hide image'"
-                >
-                  <i :class="isHidden ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash'"></i>
-                </button>
-                <button
-                  v-if="image.prompt_simple"
-                  @click="copyPrompt"
-                  class="btn-quick btn-quick-copy"
-                  :title="promptCopied ? 'Copied!' : 'Copy prompt'"
-                >
-                  <i :class="promptCopied ? 'fa-solid fa-check' : 'fa-solid fa-copy'"></i>
-                </button>
-              </div>
-
-              <!-- Full action buttons -->
+            <AccordionSection title="Actions" icon="fa-gear" :defaultOpen="true" :forceOpen="true">
+              <!-- Action buttons -->
               <div class="action-buttons">
-                <button
-                  v-if="hasSettings"
-                  @click="$emit('load-settings', false)"
-                  class="btn-action btn-load-settings"
-                  title="Load generation settings from this image"
-                >
-                  <i class="fa-solid fa-sliders"></i>
-                  <span>Load Settings</span>
-                </button>
-                <button
-                  v-if="hasSettings"
-                  @click="$emit('load-settings', true)"
-                  class="btn-action btn-load-settings-seed"
-                  title="Load generation settings including seed"
-                >
-                  <i class="fa-solid fa-seedling"></i>
-                  <span>Load + Seed</span>
-                </button>
+                <!-- Favorite / Hide row -->
+                <div class="action-row">
+                  <button
+                    @click="toggleFavorite"
+                    :class="['btn-action btn-secondary', { 'active': isFavorite }]"
+                    :title="isFavorite ? 'Remove from favorites' : 'Add to favorites'"
+                  >
+                    <i class="fa-star" :class="isFavorite ? 'fa-solid' : 'fa-regular'"></i>
+                    <span>{{ isFavorite ? 'Favorited' : 'Favorite' }}</span>
+                  </button>
+                  <button
+                    @click="toggleHidden"
+                    :class="['btn-action btn-secondary', { 'active-hide': isHidden }]"
+                    :title="isHidden ? 'Unhide image' : 'Hide image'"
+                  >
+                    <i :class="isHidden ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash'"></i>
+                    <span>{{ isHidden ? 'Hidden' : 'Hide' }}</span>
+                  </button>
+                </div>
+                <!-- Load settings row -->
+                <div v-if="hasSettings" class="action-row">
+                  <button
+                    @click="$emit('load-settings', false)"
+                    class="btn-action btn-secondary"
+                    title="Load generation settings from this image"
+                  >
+                    <i class="fa-solid fa-sliders"></i>
+                    <span>Load Settings</span>
+                  </button>
+                  <button
+                    @click="$emit('load-settings', true)"
+                    class="btn-action btn-secondary"
+                    title="Load generation settings including seed"
+                  >
+                    <i class="fa-solid fa-seedling"></i>
+                    <span>+ Seed</span>
+                  </button>
+                </div>
+                <!-- Request / Response row -->
                 <div v-if="hasSettings || hasResponse" class="action-row">
                   <button
                     v-if="hasSettings"
                     @click="showDetailsView('request')"
-                    class="btn-action btn-view-request"
+                    class="btn-action btn-secondary"
                     title="View full request JSON"
                   >
                     <i class="fa-solid fa-code"></i>
@@ -172,7 +179,7 @@
                   <button
                     v-if="hasResponse"
                     @click="showDetailsView('response')"
-                    class="btn-action btn-view-response"
+                    class="btn-action btn-secondary"
                     title="View full response JSON"
                   >
                     <i class="fa-solid fa-file-code"></i>
@@ -182,7 +189,7 @@
                 <a
                   :href="imageUrl"
                   :download="`aislingeach-${image.uuid}.png`"
-                  class="btn-action btn-download"
+                  class="btn-action btn-primary"
                 >
                   <i class="fa-solid fa-download"></i>
                   <span>Download</span>
@@ -275,11 +282,11 @@ export default {
     const showDetails = ref(false)
     const detailsType = ref('request')
     const copied = ref(false)
-    const promptCopied = ref(false)
     const showDeleteModal = ref(false)
     const filmstripTrack = ref(null)
     const canScrollPrev = ref(false)
     const canScrollNext = ref(false)
+    const isDesktop = ref(window.innerWidth > 1024)
 
     // Watch for prop changes when navigating between images
     watch(() => props.image, (newImage) => {
@@ -343,6 +350,22 @@ export default {
         return models[0]
       }
       return 'Unknown'
+    })
+
+    // Full prompt from parsed request
+    const fullPrompt = computed(() => {
+      return parsedRequest.value?.prompt || props.image.prompt_simple || ''
+    })
+
+    // Negative prompt (part after ###)
+    const negativePrompt = computed(() => {
+      const full = fullPrompt.value
+      if (!full) return ''
+      const parts = full.split('###')
+      if (parts.length > 1) {
+        return parts[1].trim()
+      }
+      return ''
     })
 
     const parsedLoras = computed(() => {
@@ -499,19 +522,6 @@ export default {
       }
     }
 
-    const copyPrompt = async () => {
-      if (!props.image.prompt_simple) return
-      try {
-        await navigator.clipboard.writeText(props.image.prompt_simple)
-        promptCopied.value = true
-        setTimeout(() => {
-          promptCopied.value = false
-        }, 2000)
-      } catch (error) {
-        console.error('Failed to copy prompt:', error)
-      }
-    }
-
     const formatDate = (timestamp) => {
       const date = new Date(timestamp)
       return date.toLocaleString()
@@ -625,8 +635,13 @@ export default {
       emit('delete', props.image.uuid)
     }
 
+    const handleResize = () => {
+      isDesktop.value = window.innerWidth > 1024
+    }
+
     onMounted(() => {
       window.addEventListener('keydown', handleKeydown)
+      window.addEventListener('resize', handleResize)
       scrollToActiveThumb()
 
       // Set up scroll listener for filmstrip
@@ -638,6 +653,7 @@ export default {
 
     onUnmounted(() => {
       window.removeEventListener('keydown', handleKeydown)
+      window.removeEventListener('resize', handleResize)
       if (filmstripTrack.value) {
         filmstripTrack.value.removeEventListener('scroll', updateScrollButtons)
       }
@@ -666,11 +682,10 @@ export default {
       copyToClipboard,
       copied,
       copyButtonText,
-      copyPrompt,
-      promptCopied,
       showDeleteModal,
       confirmDelete,
       // Parsed data
+      negativePrompt,
       modelName,
       parsedLoras,
       parsedTis,
@@ -682,7 +697,9 @@ export default {
       navigateToImage,
       scrollFilmstrip,
       canScrollPrev,
-      canScrollNext
+      canScrollNext,
+      // Responsive
+      isDesktop
     }
   }
 }
@@ -728,7 +745,7 @@ export default {
   font-size: 1rem;
   border-radius: 8px;
   cursor: pointer;
-  z-index: 30;
+  z-index: 10;
   transition: background 0.15s;
   display: flex;
   align-items: center;
@@ -748,6 +765,7 @@ export default {
 
 /* Image area (left side) */
 .image-area {
+  position: relative;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -962,6 +980,10 @@ export default {
   word-break: break-word;
 }
 
+.prompt-display.negative {
+  color: var(--color-text-tertiary);
+}
+
 .no-data {
   color: var(--color-text-tertiary);
   font-size: 0.8125rem;
@@ -1032,55 +1054,6 @@ export default {
   flex-shrink: 0;
 }
 
-/* Quick actions (icon buttons row) */
-.quick-actions {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
-}
-
-.btn-quick {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  border: 1px solid var(--color-border);
-  background: transparent;
-  color: var(--color-text-tertiary);
-  cursor: pointer;
-  transition: all 0.15s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.875rem;
-}
-
-.btn-quick:hover {
-  background: var(--color-surface-hover);
-  color: var(--color-text-primary);
-}
-
-.btn-quick.active {
-  background: var(--color-warning);
-  color: var(--color-bg-base);
-  border-color: var(--color-warning);
-}
-
-.btn-quick-hide.active {
-  background: var(--color-text-disabled);
-  color: var(--color-text-primary);
-  border-color: var(--color-text-disabled);
-}
-
-.btn-quick-copy {
-  color: var(--color-info);
-  border-color: var(--color-info);
-}
-
-.btn-quick-copy:hover {
-  background: var(--color-info);
-  color: white;
-}
-
 /* Action buttons */
 .action-buttons {
   display: flex;
@@ -1116,60 +1089,64 @@ export default {
   font-size: 0.8125rem;
 }
 
-.btn-load-settings {
-  background: var(--color-success);
-  color: white;
-}
-
-.btn-load-settings:hover {
-  background: var(--color-success-hover);
-}
-
-.btn-load-settings-seed {
-  background: var(--color-success-light);
-  color: white;
-}
-
-.btn-load-settings-seed:hover {
-  background: var(--color-success-light-hover);
-}
-
-.btn-view-request {
-  background: var(--color-info-light);
-  color: white;
-}
-
-.btn-view-request:hover {
-  background: var(--color-info-light-hover);
-}
-
-.btn-view-response {
-  background: var(--color-purple);
-  color: white;
-}
-
-.btn-view-response:hover {
-  background: var(--color-purple-hover);
-}
-
-.btn-download {
+/* Primary button style */
+.btn-primary {
   background: var(--color-primary);
   color: white;
+  border: 1px solid var(--color-primary);
 }
 
-.btn-download:hover {
+.btn-primary:hover {
   background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
 }
 
+/* Secondary button style (gray) */
+.btn-secondary {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+}
+
+.btn-secondary:hover {
+  background: var(--color-border);
+  border-color: var(--color-border-light);
+}
+
+/* Active state for favorite button */
+.btn-secondary.active {
+  background: var(--color-warning);
+  color: var(--color-bg-base);
+  border-color: var(--color-warning);
+}
+
+.btn-secondary.active:hover {
+  background: var(--color-warning-hover);
+  border-color: var(--color-warning-hover);
+}
+
+/* Active state for hide button */
+.btn-secondary.active-hide {
+  background: var(--color-text-disabled);
+  color: var(--color-text-primary);
+  border-color: var(--color-text-disabled);
+}
+
+.btn-secondary.active-hide:hover {
+  background: var(--color-text-tertiary);
+  border-color: var(--color-text-tertiary);
+}
+
+/* Delete button (danger) */
 .btn-delete {
-  background: transparent;
-  color: var(--color-danger);
-  border: 1px solid #3a1a1a;
+  background: var(--color-danger);
+  color: white;
+  border: 1px solid var(--color-danger);
 }
 
 .btn-delete:hover {
-  background: #3a1a1a;
-  border-color: var(--color-danger);
+  background: var(--color-danger-hover);
+  border-color: var(--color-danger-hover);
 }
 
 /* Details overlay */

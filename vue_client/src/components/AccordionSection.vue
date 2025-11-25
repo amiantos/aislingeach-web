@@ -14,7 +14,7 @@
 </template>
 
 <script>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 
 export default {
   name: 'AccordionSection',
@@ -30,10 +30,21 @@ export default {
     defaultOpen: {
       type: Boolean,
       default: false
+    },
+    forceOpen: {
+      type: Boolean,
+      default: null
     }
   },
   setup(props) {
-    const isOpen = ref(props.defaultOpen)
+    const isOpen = ref(props.forceOpen !== null ? props.forceOpen : props.defaultOpen)
+
+    // Watch for forceOpen changes (e.g., when screen size changes)
+    watch(() => props.forceOpen, (newValue) => {
+      if (newValue !== null) {
+        isOpen.value = newValue
+      }
+    })
 
     const toggle = () => {
       isOpen.value = !isOpen.value
