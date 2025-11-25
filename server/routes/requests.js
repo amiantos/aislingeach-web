@@ -67,7 +67,6 @@ router.delete('/', async (req, res) => {
       try {
         const images = GeneratedImage.findByRequestId(request.uuid);
         const pendingDownloads = HordePendingDownload.findByRequestId(request.uuid);
-        console.log(`[DeleteRequests] Processing request ${request.uuid.substring(0, 8)} with ${images.length} images and ${pendingDownloads.length} pending downloads, action: ${imageAction}`);
 
         // Delete all pending downloads for this request first
         pendingDownloads.forEach(d => HordePendingDownload.delete(d.uuid));
@@ -97,22 +96,17 @@ router.delete('/', async (req, res) => {
         // Check for any remaining references
         const allImages = db.prepare('SELECT uuid, is_trashed FROM generated_images WHERE request_id = ?').all(request.uuid);
         const allDownloads = db.prepare('SELECT uuid FROM horde_pending_downloads WHERE request_id = ?').all(request.uuid);
-        console.log(`[DeleteRequests] Raw DB check - ${allImages.length} total images (including trashed), ${allDownloads.length} total downloads`);
 
         if (allImages.length > 0) {
-          console.log(`[DeleteRequests] Clearing request_id from all ${allImages.length} images (including trashed ones)`);
           db.prepare('UPDATE generated_images SET request_id = NULL WHERE request_id = ?').run(request.uuid);
         }
 
         if (allDownloads.length > 0) {
-          console.log(`[DeleteRequests] Deleting ${allDownloads.length} pending downloads`);
           db.prepare('DELETE FROM horde_pending_downloads WHERE request_id = ?').run(request.uuid);
         }
 
         // Delete the request
-        console.log(`[DeleteRequests] Deleting request ${request.uuid.substring(0, 8)}`);
         HordeRequest.delete(request.uuid);
-        console.log(`[DeleteRequests] Successfully deleted request ${request.uuid.substring(0, 8)}`);
       } catch (requestError) {
         console.error(`[DeleteRequests] Error deleting request ${request.uuid.substring(0, 8)}:`, requestError.message);
         throw requestError; // Re-throw to trigger the outer catch

@@ -1,9 +1,25 @@
 import express from 'express';
 import db from '../db/database.js';
-import ClusterAnalyzer, { BOILERPLATE_KEYWORDS } from '../services/clusterAnalyzer.js';
 import albumCache from '../services/albumCache.js';
 
 const router = express.Router();
+
+/**
+ * Boilerplate keywords to exclude from album analysis
+ */
+const BOILERPLATE_KEYWORDS = new Set([
+  'masterpiece', 'best quality', 'amazing quality', 'very aesthetic',
+  'high resolution', 'ultra-detailed', 'absurdres', 'intricate',
+  'detailed', 'highly detailed', 'extremely detailed', 'insane details',
+  'hyper detailed', 'ultra detailed', 'very detailed', 'intricate details',
+  'hyperdetailed', 'maximum details', 'meticulous', 'magnificent',
+  'score_9', 'score_8_up', 'score_7_up', 'score_6_up', 'score_5_up',
+  'score_4_up', 'score_3_up', 'score_2_up', 'score_1_up',
+  'looking at viewer', 'solo', 'depth of field', 'volumetric lighting',
+  'scenery', 'newest', 'sharp focus', 'elegant', 'cinematic look',
+  'soothing tones', 'soft cinematic light', 'low contrast', 'dim colors',
+  'exposure blend', 'hdr', 'faded'
+]);
 
 /**
  * Extract and count keywords from prompts using TF-IDF scoring
@@ -173,6 +189,80 @@ function groupKeywordsByOverlap(keywords, baseWhere) {
 }
 
 /**
+ * Generate albums from filters
+ * @param {boolean} showFavorites - Only show favorite images
+ * @param {boolean} includeHidden - Include hidden images
+ * @returns {Array} Array of album objects
+ */
+function generateAlbumsForFilters(showFavorites, includeHidden) {
+  const albums = [];
+
+  // Build base query for filtering
+  let baseWhere = 'is_trashed = 0';
+  if (showFavorites) {
+    baseWhere += ' AND is_favorite = 1';
+  }
+  if (!includeHidden) {
+    baseWhere += ' AND is_hidden = 0';
+  }
+
+  // Get prompts for analysis
+  const promptData = db.prepare(`
+    SELECT prompt_simple, is_favorite FROM generated_images
+    WHERE ${baseWhere}
+  `).all().map(row => ({
+    prompt: row.prompt_simple,
+    isFavorite: row.is_favorite === 1
+  }));
+
+  // Skip if no data
+  if (promptData.length === 0) {
+    return albums;
+  }
+
+  // Simple frequency-based albums: show any keyword with ≥50 images
+  const totalImages = promptData.length;
+  const minThreshold = Math.max(20, Math.min(50, Math.floor(totalImages * 0.02)));
+
+  // Extract keywords with TF-IDF but use it only for ordering, not filtering
+  const topKeywords = extractKeywords(promptData, 100);
+
+  // Filter by frequency threshold and exclude boilerplate
+  const eligibleKeywords = topKeywords
+    .filter(({ keyword, count }) =>
+      count >= minThreshold && !BOILERPLATE_KEYWORDS.has(keyword.toLowerCase())
+    );
+
+  // Group keywords by image overlap
+  const keywordGroups = groupKeywordsByOverlap(eligibleKeywords, baseWhere);
+
+  // Sort groups by image count (highest first)
+  keywordGroups.sort((a, b) => b.count - a.count);
+
+  // Create albums from groups
+  keywordGroups.forEach(group => {
+    // Get most recent image for this keyword group
+    const thumbnail = db.prepare(`
+      SELECT uuid FROM generated_images
+      WHERE ${baseWhere} AND prompt_simple LIKE ?
+      ORDER BY date_created DESC
+      LIMIT 1
+    `).get(`%${group.keywords[0]}%`);
+
+    albums.push({
+      id: `keyword:${group.keywords.join('+')}`,
+      name: group.keywords.join(', '),
+      type: 'keyword',
+      keywords: group.keywords,
+      count: group.count,
+      thumbnail: thumbnail ? thumbnail.uuid : null
+    });
+  });
+
+  return albums;
+}
+
+/**
  * GET /api/albums
  * Get all keyword albums extracted from image prompts
  */
@@ -189,64 +279,7 @@ router.get('/', (req, res) => {
     }
 
     // Cache miss - generate albums
-    const albums = [];
-
-    // Build base query for filtering
-    let baseWhere = 'is_trashed = 0';
-    if (showFavorites) {
-      baseWhere += ' AND is_favorite = 1';
-    }
-    if (!includeHidden) {
-      baseWhere += ' AND is_hidden = 0';
-    }
-
-    // Get prompts for analysis
-    const promptData = db.prepare(`
-      SELECT prompt_simple, is_favorite FROM generated_images
-      WHERE ${baseWhere}
-    `).all().map(row => ({
-      prompt: row.prompt_simple,
-      isFavorite: row.is_favorite === 1
-    }));
-
-    // Simple frequency-based albums: show any keyword with ≥50 images
-    const totalImages = promptData.length;
-    const minThreshold = Math.max(20, Math.min(50, Math.floor(totalImages * 0.02)));
-
-    // Extract keywords with TF-IDF but use it only for ordering, not filtering
-    const topKeywords = extractKeywords(promptData, 100);
-
-    // Filter by frequency threshold and exclude boilerplate
-    const eligibleKeywords = topKeywords
-      .filter(({ keyword, count }) =>
-        count >= minThreshold && !BOILERPLATE_KEYWORDS.has(keyword.toLowerCase())
-      );
-
-    // Group keywords by image overlap
-    const keywordGroups = groupKeywordsByOverlap(eligibleKeywords, baseWhere);
-
-    // Sort groups by image count (highest first)
-    keywordGroups.sort((a, b) => b.count - a.count);
-
-    // Create albums from groups
-    keywordGroups.forEach(group => {
-      // Get most recent image for this keyword group
-      const thumbnail = db.prepare(`
-        SELECT uuid FROM generated_images
-        WHERE ${baseWhere} AND prompt_simple LIKE ?
-        ORDER BY date_created DESC
-        LIMIT 1
-      `).get(`%${group.keywords[0]}%`);
-
-      albums.push({
-        id: `keyword:${group.keywords.join('+')}`,
-        name: group.keywords.join(', '),
-        type: 'keyword',
-        keywords: group.keywords,
-        count: group.count,
-        thumbnail: thumbnail ? thumbnail.uuid : null
-      });
-    });
+    const albums = generateAlbumsForFilters(showFavorites, includeHidden);
 
     // Store in cache
     albumCache.set(showFavorites, includeHidden, albums);
@@ -263,9 +296,6 @@ router.get('/', (req, res) => {
  * Pre-generates albums for all common filter combinations
  */
 export async function warmAlbumCache() {
-  console.log('[AlbumCache] Warming up cache...');
-  const startTime = Date.now();
-
   const filterCombinations = [
     { favorites: false, includeHidden: false }, // Default view
     { favorites: false, includeHidden: true },  // With hidden
@@ -275,80 +305,17 @@ export async function warmAlbumCache() {
 
   for (const filters of filterCombinations) {
     try {
-      // Simulate a request to generate and cache the albums
-      const albums = [];
+      // Generate and cache albums for this filter combination
+      const albums = generateAlbumsForFilters(filters.favorites, filters.includeHidden);
 
-      // Build base query
-      let baseWhere = 'is_trashed = 0';
-      if (filters.favorites) {
-        baseWhere += ' AND is_favorite = 1';
+      // Only cache if we generated albums
+      if (albums.length > 0) {
+        albumCache.set(filters.favorites, filters.includeHidden, albums);
       }
-      if (!filters.includeHidden) {
-        baseWhere += ' AND is_hidden = 0';
-      }
-
-      // Get prompt data
-      const promptData = db.prepare(`
-        SELECT prompt_simple, is_favorite FROM generated_images
-        WHERE ${baseWhere}
-      `).all().map(row => ({
-        prompt: row.prompt_simple,
-        isFavorite: row.is_favorite === 1
-      }));
-
-      // Skip if no data for this filter combination
-      if (promptData.length === 0) {
-        console.log(`[AlbumCache] Skipping empty filter: favorites=${filters.favorites}, includeHidden=${filters.includeHidden}`);
-        continue;
-      }
-
-      // Simple frequency-based albums
-      const totalImages = promptData.length;
-      const minThreshold = Math.max(20, Math.min(50, Math.floor(totalImages * 0.02)));
-
-      const topKeywords = extractKeywords(promptData, 100);
-
-      const eligibleKeywords = topKeywords
-        .filter(({ keyword, count }) =>
-          count >= minThreshold && !BOILERPLATE_KEYWORDS.has(keyword.toLowerCase())
-        );
-
-      // Group keywords by image overlap
-      const keywordGroups = groupKeywordsByOverlap(eligibleKeywords, baseWhere);
-
-      // Sort groups by image count (highest first)
-      keywordGroups.sort((a, b) => b.count - a.count);
-
-      // Create albums from groups
-      keywordGroups.forEach(group => {
-        const thumbnail = db.prepare(`
-          SELECT uuid FROM generated_images
-          WHERE ${baseWhere} AND prompt_simple LIKE ?
-          ORDER BY date_created DESC
-          LIMIT 1
-        `).get(`%${group.keywords[0]}%`);
-
-        albums.push({
-          id: `keyword:${group.keywords.join('+')}`,
-          name: group.keywords.join(', '),
-          type: 'keyword',
-          keywords: group.keywords,
-          count: group.count,
-          thumbnail: thumbnail ? thumbnail.uuid : null
-        });
-      });
-
-      // Store in cache
-      albumCache.set(filters.favorites, filters.includeHidden, albums);
-
     } catch (error) {
       console.error(`[AlbumCache] Error warming cache for favorites=${filters.favorites}, includeHidden=${filters.includeHidden}:`, error.message);
     }
   }
-
-  const elapsed = Date.now() - startTime;
-  const stats = albumCache.getStats();
-  console.log(`[AlbumCache] Cache warmed with ${stats.size} entries in ${elapsed}ms`);
 }
 
 export default router;

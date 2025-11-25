@@ -23,15 +23,7 @@ class AlbumCache {
    */
   get(showFavorites, includeHidden) {
     const key = this.getCacheKey(showFavorites, includeHidden);
-    const cached = this.cache.get(key);
-
-    if (cached) {
-      console.log(`[AlbumCache] Cache HIT for ${key}`);
-      return cached;
-    }
-
-    console.log(`[AlbumCache] Cache MISS for ${key}`);
-    return null;
+    return this.cache.get(key) || null;
   }
 
   /**
@@ -41,17 +33,14 @@ class AlbumCache {
     const key = this.getCacheKey(showFavorites, includeHidden);
     this.cache.set(key, albums);
     this.cacheTimestamps.set(key, Date.now());
-    console.log(`[AlbumCache] Cached ${albums.length} albums for ${key}`);
   }
 
   /**
    * Invalidate all cached entries
    */
   invalidate() {
-    const size = this.cache.size;
     this.cache.clear();
     this.cacheTimestamps.clear();
-    console.log(`[AlbumCache] Invalidated ${size} cache entries`);
   }
 
   /**
@@ -59,11 +48,8 @@ class AlbumCache {
    */
   invalidateKey(showFavorites, includeHidden) {
     const key = this.getCacheKey(showFavorites, includeHidden);
-    const deleted = this.cache.delete(key);
+    this.cache.delete(key);
     this.cacheTimestamps.delete(key);
-    if (deleted) {
-      console.log(`[AlbumCache] Invalidated cache for ${key}`);
-    }
   }
 
   /**
