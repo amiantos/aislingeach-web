@@ -36,32 +36,39 @@ router.get('/:id', (req, res) => {
 function validateRequestParams(params) {
   const errors = [];
 
-  // Required numeric fields
-  if (typeof params.width !== 'number' || params.width <= 0) {
-    errors.push('width must be a positive number');
-  }
-  if (typeof params.height !== 'number' || params.height <= 0) {
-    errors.push('height must be a positive number');
-  }
-  if (typeof params.steps !== 'number' || params.steps <= 0) {
-    errors.push('steps must be a positive number');
-  }
-  if (typeof params.cfg_scale !== 'number' || params.cfg_scale < 0) {
-    errors.push('cfg_scale must be a non-negative number');
-  }
-
-  // Required string fields
-  if (typeof params.sampler_name !== 'string' || !params.sampler_name.trim()) {
-    errors.push('sampler_name is required');
-  }
-
-  // Required array fields
+  // Models is at the top level of params
   if (!Array.isArray(params.models) || params.models.length === 0) {
     errors.push('models must be a non-empty array');
   }
 
+  // The generation parameters are nested in params.params
+  const genParams = params.params;
+  if (!genParams) {
+    errors.push('params.params is required');
+    return errors;
+  }
+
+  // Required numeric fields
+  if (typeof genParams.width !== 'number' || genParams.width <= 0) {
+    errors.push('width must be a positive number');
+  }
+  if (typeof genParams.height !== 'number' || genParams.height <= 0) {
+    errors.push('height must be a positive number');
+  }
+  if (typeof genParams.steps !== 'number' || genParams.steps <= 0) {
+    errors.push('steps must be a positive number');
+  }
+  if (typeof genParams.cfg_scale !== 'number' || genParams.cfg_scale < 0) {
+    errors.push('cfg_scale must be a non-negative number');
+  }
+
+  // Required string fields
+  if (typeof genParams.sampler_name !== 'string' || !genParams.sampler_name.trim()) {
+    errors.push('sampler_name is required');
+  }
+
   // Optional but validated if present
-  if (params.n !== undefined && (typeof params.n !== 'number' || params.n <= 0)) {
+  if (genParams.n !== undefined && (typeof genParams.n !== 'number' || genParams.n <= 0)) {
     errors.push('n must be a positive number');
   }
 
