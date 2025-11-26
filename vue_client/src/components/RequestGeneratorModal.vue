@@ -1381,10 +1381,12 @@ export default {
       if (selectedStyleName.value && selectedStyleData.value) {
         const style = selectedStyleData.value
 
-        // Copy style parameters to request
+        // Copy style parameters to request (only if they have valid values)
         styleCopyParams.forEach(param => {
-          if (style[param] !== undefined) {
-            params.params[param] = style[param]
+          const value = style[param]
+          // Skip null, undefined, and empty arrays
+          if (value !== undefined && value !== null && !(Array.isArray(value) && value.length === 0)) {
+            params.params[param] = value
           }
         })
 
