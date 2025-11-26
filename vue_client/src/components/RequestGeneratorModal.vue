@@ -385,7 +385,8 @@
                 </div>
               </div>
 
-              <!-- Textual Inversions Section -->
+              <!-- Textual Inversions Section (hidden - not fully working yet) -->
+              <template v-if="false">
               <h4 class="section-title">Textual Inversions</h4>
               <div class="tis-section">
                 <!-- Textual Inversions -->
@@ -481,6 +482,7 @@
                   </div>
                 </div>
               </div>
+              </template>
 
               <!-- Post-Processing Section -->
               <h4 class="section-title">Post-Processing</h4>
