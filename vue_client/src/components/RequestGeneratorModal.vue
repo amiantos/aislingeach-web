@@ -628,9 +628,9 @@
 
 <script>
 import { ref, reactive, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { requestsApi, imagesApi, settingsApi } from '../api/client.js'
+import { requestsApi, imagesApi, settingsApi } from '@api'
 import { baseRequest, styleCopyParams } from '../config/baseRequest.js'
-import { getRandomPreset } from '../config/presets.js'
+import { getRandomPreset, getDefaultPreset } from '../config/presets.js'
 import { useModelCache } from '../composables/useModelCache.js'
 import { useKudosEstimation } from '../composables/useKudosEstimation.js'
 import { splitPrompt, replaceNegativePlaceholder } from '../utils/promptUtils.js'
@@ -722,6 +722,7 @@ export default {
 
     // Load last used settings (from localStorage for speed, fallback to server)
     // Now loads the actual Horde request and uses loadSettings() for enrichment
+    // Returns true if settings were found and loaded, false otherwise
     const loadLastUsedSettings = async () => {
       try {
         // Try localStorage first for instant loading
@@ -733,7 +734,7 @@ export default {
               // Use the standard loadSettings function (same as historical requests)
               // This will enrich minimal LoRA data from cache
               await loadSettings(lastSettings, false)
-              return // Success, no need to fetch from server
+              return true // Success, settings loaded
             }
           } catch (parseError) {
             console.error('Error parsing cached settings:', parseError)
@@ -751,6 +752,7 @@ export default {
               await loadSettings(lastSettings, false)
               // Cache the settings locally for next time
               localStorage.setItem('lastUsedSettings', JSON.stringify(lastSettings))
+              return true // Success, settings loaded
             }
           } catch (parseError) {
             console.error('Error parsing last_used_settings:', parseError)
@@ -759,6 +761,7 @@ export default {
       } catch (error) {
         console.error('Error loading last used settings:', error)
       }
+      return false // No settings found
     }
 
     // Save last used settings (to both localStorage and server)
@@ -1630,11 +1633,14 @@ export default {
       }
 
       // Always load last used settings first to restore worker preferences
-      await loadLastUsedSettings()
+      const hasLastUsedSettings = await loadLastUsedSettings()
 
       // Then load initial settings from props if provided (this will override generation params but not worker prefs)
       if (props.initialSettings) {
         await loadSettings(props.initialSettings, props.includeSeed)
+      } else if (!hasLastUsedSettings) {
+        // First time experience: load the default sample preset
+        await loadSettings(getDefaultPreset(), false)
       }
 
       // Only estimate if we have a model after loading

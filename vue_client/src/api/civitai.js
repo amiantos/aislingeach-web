@@ -1,11 +1,40 @@
 /**
  * CivitAI API Client
  *
- * Proxies requests through our server to CivitAI API.
- * Server handles caching and rate limiting.
+ * In normal mode: Proxies requests through our server to CivitAI API.
+ * In demo mode: Attempts direct calls to CivitAI (may fail due to CORS).
  */
 
-import apiClient from './client.js';
+const isDemo = typeof __DEMO_MODE__ !== 'undefined' && __DEMO_MODE__
+
+const CIVITAI_API_BASE = 'https://civitai.com/api/v1'
+
+// Store apiClient for non-demo mode
+let apiClientInstance = null
+
+async function getApiClient() {
+  if (isDemo) {
+    return null
+  }
+  if (!apiClientInstance) {
+    // Use static import at module level would be cleaner but we need conditional
+    const module = await import('./client.js')
+    apiClientInstance = module.default
+  }
+  return apiClientInstance
+}
+
+async function directCivitaiRequest(endpoint, options = {}) {
+  const url = `${CIVITAI_API_BASE}${endpoint}`
+  // Don't set Content-Type for GET requests - it triggers CORS preflight
+  const response = await fetch(url, {
+    ...options
+  })
+  if (!response.ok) {
+    throw new Error(`CivitAI API error: ${response.status}`)
+  }
+  return response.json()
+}
 
 /**
  * Search LoRAs via server proxy
@@ -31,6 +60,29 @@ export async function searchLoras({
   signal = null
 }) {
   try {
+    if (isDemo) {
+      // Direct CivitAI call - may fail due to CORS
+      const sortMap = {
+        'Highest Rated': 'Highest Rated',
+        'Most Downloaded': 'Most Downloaded',
+        'Newest': 'Newest'
+      }
+      const params = new URLSearchParams({
+        types: 'LORA',
+        query: query || '',
+        page: page.toString(),
+        limit: limit.toString(),
+        sort: sortMap[sort] || 'Highest Rated',
+        nsfw: nsfw.toString()
+      })
+      if (baseModelFilters.length > 0) {
+        baseModelFilters.forEach(f => params.append('baseModels', f))
+      }
+      const endpoint = url ? url.replace(CIVITAI_API_BASE, '') : `/models?${params.toString()}`
+      return await directCivitaiRequest(endpoint, { signal })
+    }
+
+    const apiClient = await getApiClient()
     const response = await apiClient.post('/civitai/search', {
       query,
       page,
@@ -61,6 +113,10 @@ export async function searchLoras({
  */
 export async function getLoraById(modelId, signal = null) {
   try {
+    if (isDemo) {
+      return await directCivitaiRequest(`/models/${modelId}`, { signal })
+    }
+    const apiClient = await getApiClient()
     const response = await apiClient.get(`/civitai/models/${modelId}`, { signal });
     return response.data;
   } catch (error) {
@@ -82,6 +138,15 @@ export async function getLoraById(modelId, signal = null) {
  */
 export async function getLoraByVersionId(versionId, signal = null) {
   try {
+    if (isDemo) {
+      const versionData = await directCivitaiRequest(`/model-versions/${versionId}`, { signal })
+      // Fetch full model data to get all versions
+      if (versionData.modelId) {
+        return await directCivitaiRequest(`/models/${versionData.modelId}`, { signal })
+      }
+      return versionData
+    }
+    const apiClient = await getApiClient()
     const response = await apiClient.get(`/civitai/model-versions/${versionId}`, { signal });
     return response.data;
   } catch (error) {
@@ -119,6 +184,29 @@ export async function searchTextualInversions({
   signal = null
 }) {
   try {
+    if (isDemo) {
+      // Direct CivitAI call - may fail due to CORS
+      const sortMap = {
+        'Highest Rated': 'Highest Rated',
+        'Most Downloaded': 'Most Downloaded',
+        'Newest': 'Newest'
+      }
+      const params = new URLSearchParams({
+        types: 'TextualInversion',
+        query: query || '',
+        page: page.toString(),
+        limit: limit.toString(),
+        sort: sortMap[sort] || 'Highest Rated',
+        nsfw: nsfw.toString()
+      })
+      if (baseModelFilters.length > 0) {
+        baseModelFilters.forEach(f => params.append('baseModels', f))
+      }
+      const endpoint = url ? url.replace(CIVITAI_API_BASE, '') : `/models?${params.toString()}`
+      return await directCivitaiRequest(endpoint, { signal })
+    }
+
+    const apiClient = await getApiClient()
     const response = await apiClient.post('/civitai/search-tis', {
       query,
       page,
@@ -149,6 +237,10 @@ export async function searchTextualInversions({
  */
 export async function getTiById(modelId, signal = null) {
   try {
+    if (isDemo) {
+      return await directCivitaiRequest(`/models/${modelId}`, { signal })
+    }
+    const apiClient = await getApiClient()
     const response = await apiClient.get(`/civitai/ti-models/${modelId}`, { signal });
     return response.data;
   } catch (error) {
@@ -170,6 +262,15 @@ export async function getTiById(modelId, signal = null) {
  */
 export async function getTiByVersionId(versionId, signal = null) {
   try {
+    if (isDemo) {
+      const versionData = await directCivitaiRequest(`/model-versions/${versionId}`, { signal })
+      // Fetch full model data to get all versions
+      if (versionData.modelId) {
+        return await directCivitaiRequest(`/models/${versionData.modelId}`, { signal })
+      }
+      return versionData
+    }
+    const apiClient = await getApiClient()
     const response = await apiClient.get(`/civitai/ti-versions/${versionId}`, { signal });
     return response.data;
   } catch (error) {
