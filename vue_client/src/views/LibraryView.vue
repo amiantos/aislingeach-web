@@ -1056,6 +1056,7 @@ export default {
     const viewRequestImages = (requestId) => {
       filters.value.requestId = requestId
       filters.value.keywords = []
+      filters.value.filterCriteria = []
 
       // Don't close the panel - keep it open for user convenience
 
@@ -1063,6 +1064,7 @@ export default {
       offset.value = 0
       hasMore.value = true
       fetchImages()
+      updateFilterUrl()
     }
 
     const showDeleteModal = (requestId) => {
@@ -1146,6 +1148,39 @@ export default {
         query.q = queryKeywords.join(',')
       }
 
+      // Add request ID (check both direct filter and filterCriteria)
+      if (filters.value.requestId) {
+        query.request = filters.value.requestId
+      }
+
+      // Add filterCriteria to URL params
+      for (const criterion of filters.value.filterCriteria) {
+        switch (criterion.type) {
+          case 'lora_id':
+            // Support multiple loras as comma-separated
+            if (query.lora) {
+              query.lora += ',' + criterion.value
+            } else {
+              query.lora = criterion.value
+            }
+            break
+          case 'model':
+            query.model = criterion.value
+            break
+          case 'keyword':
+            // Add to keywords (q param)
+            if (query.q) {
+              query.q += ',' + criterion.value
+            } else {
+              query.q = criterion.value
+            }
+            break
+          case 'request_id':
+            query.request = criterion.value
+            break
+        }
+      }
+
       // Update URL without triggering navigation
       router.replace({ path: '/', query })
     }
@@ -1154,6 +1189,8 @@ export default {
       // Reset filters
       filters.value.showFavoritesOnly = false
       filters.value.keywords = []
+      filters.value.requestId = null
+      filters.value.filterCriteria = []
 
       // Load keywords from query params
       if (route.query.q) {
@@ -1169,6 +1206,24 @@ export default {
 
         // Set remaining keywords
         filters.value.keywords = queryKeywords
+      }
+
+      // Load request ID from URL
+      if (route.query.request) {
+        filters.value.requestId = route.query.request
+      }
+
+      // Load lora filter(s) from URL
+      if (route.query.lora) {
+        const loraIds = route.query.lora.split(',').filter(l => l.trim().length > 0)
+        for (const loraId of loraIds) {
+          filters.value.filterCriteria.push({ type: 'lora_id', value: loraId.trim() })
+        }
+      }
+
+      // Load model filter from URL
+      if (route.query.model) {
+        filters.value.filterCriteria.push({ type: 'model', value: route.query.model })
       }
 
       // Load showHidden from sessionStorage (persists across navigation)
@@ -1274,23 +1329,34 @@ export default {
     imagePolling.watchQueueStatus(queueStatus)
 
     // Watch for route changes to update filters
-    watch(() => route.path + route.query.q, (newVal, oldVal) => {
-      // Ignore route changes when opening/closing/navigating the modal
-      // This allows URL updates for bookmarking without triggering data reloads
-      const newPath = route.path
-      const oldPath = oldVal ? oldVal.split('?')[0] : ''
+    // Watch all filter-related query params
+    watch(
+      () => JSON.stringify({
+        path: route.path,
+        q: route.query.q,
+        lora: route.query.lora,
+        model: route.query.model,
+        request: route.query.request
+      }),
+      (newVal, oldVal) => {
+        // Ignore route changes when opening/closing/navigating the modal
+        // This allows URL updates for bookmarking without triggering data reloads
+        const newPath = route.path
+        const oldParsed = oldVal ? JSON.parse(oldVal) : {}
+        const oldPath = oldParsed.path || ''
 
-      if (newPath.startsWith('/image/') || oldPath.startsWith('/image/')) {
-        // Modal-related route change - don't reload data
-        return
+        if (newPath.startsWith('/image/') || oldPath.startsWith('/image/')) {
+          // Modal-related route change - don't reload data
+          return
+        }
+
+        loadFiltersFromUrl()
+        offset.value = 0
+        hasMore.value = true
+        fetchImages()
+        fetchKeywords()
       }
-
-      loadFiltersFromUrl()
-      offset.value = 0
-      hasMore.value = true
-      fetchImages()
-      fetchKeywords()
-    })
+    )
 
     const handleClickOutside = (event) => {
       if (menuContainer.value && !menuContainer.value.contains(event.target)) {
