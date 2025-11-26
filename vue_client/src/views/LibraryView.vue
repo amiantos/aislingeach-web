@@ -112,7 +112,7 @@
         </div>
 
         <!-- Active Filters Row -->
-        <div v-if="filters.requestId || filters.keywords.length > 0" class="header-row-2">
+        <div v-if="filters.requestId || filters.keywords.length > 0 || filters.filterCriteria.length > 0" class="header-row-2">
           <div class="filter-chips-container">
             <div class="filter-chips">
               <div v-if="filters.requestId" class="filter-chip">
@@ -123,10 +123,14 @@
                 <span>{{ keyword }}</span>
                 <button @click="clearFilter('keywords', keyword)" class="chip-remove" :aria-label="'Remove ' + keyword + ' filter'">×</button>
               </div>
+              <div v-for="(criterion, index) in filters.filterCriteria" :key="'criterion-' + index" class="filter-chip" :class="'filter-chip-' + criterion.type">
+                <span>{{ formatFilterChip(criterion) }}</span>
+                <button @click="clearFilter('filterCriteria', criterion)" class="chip-remove" :aria-label="'Remove ' + criterion.value + ' filter'">×</button>
+              </div>
             </div>
           </div>
           <!-- Clear All Button -->
-          <button v-if="filters.keywords.length > 1" @click="clearAllFilters" class="btn-clear-filters" title="Clear all filters">
+          <button v-if="totalFilterCount > 1" @click="clearAllFilters" class="btn-clear-filters" title="Clear all filters">
             Clear All
           </button>
         </div>
@@ -303,6 +307,7 @@ export default {
     const filters = ref({
       requestId: null,
       keywords: [], // Changed to array for multiple keywords
+      filterCriteria: [], // Flexible filter criteria from albums [{type, value}]
       showFavoritesOnly: false,
       showHidden: false
     })
@@ -372,6 +377,33 @@ export default {
       return `${count} Image${count !== 1 ? 's' : ''}`
     })
 
+    const totalFilterCount = computed(() => {
+      let count = 0
+      if (filters.value.requestId) count++
+      count += filters.value.keywords.length
+      count += filters.value.filterCriteria.length
+      return count
+    })
+
+    const formatFilterChip = (criterion) => {
+      switch (criterion.type) {
+        case 'lora_id':
+          // Try to show a friendly name if it's a numeric ID
+          if (/^\d+$/.test(criterion.value)) {
+            return `LoRA: #${criterion.value}`
+          }
+          return `LoRA: ${criterion.value}`
+        case 'model':
+          return `Model: ${criterion.value}`
+        case 'keyword':
+          return criterion.value
+        case 'request_id':
+          return `Request: ${criterion.value.substring(0, 8)}`
+        default:
+          return criterion.value
+      }
+    }
+
     const fetchImages = async (append = false) => {
       if (!hasMore.value && append) return
 
@@ -382,6 +414,9 @@ export default {
         if (filters.value.requestId) {
           response = await imagesApi.getByRequestId(filters.value.requestId, limit)
           hasMore.value = false // Request images don't paginate
+        } else if (filters.value.filterCriteria.length > 0) {
+          // Use flexible filter criteria (from album selection)
+          response = await imagesApi.getAll(limit, offset.value, filters.value)
         } else if (filters.value.keywords.length > 0) {
           // Join keywords with comma for search (supports AND filtering)
           const searchTerms = filters.value.keywords.join(',')
@@ -515,6 +550,14 @@ export default {
       } else if (filterType === 'keywords') {
         // Clear all keywords
         filters.value.keywords = []
+      } else if (filterType === 'filterCriteria' && value) {
+        // Remove specific criterion from array (match by type and value)
+        filters.value.filterCriteria = filters.value.filterCriteria.filter(
+          c => !(c.type === value.type && c.value === value.value)
+        )
+      } else if (filterType === 'filterCriteria') {
+        // Clear all filter criteria
+        filters.value.filterCriteria = []
       } else {
         filters.value[filterType] = null
       }
@@ -540,8 +583,8 @@ export default {
     const clearAllFilters = () => {
       filters.value.requestId = null
       filters.value.keywords = []
-      filters.value.showFavoritesOnly = false
-      filters.value.showHidden = false
+      filters.value.filterCriteria = []
+      // Note: Don't clear showFavoritesOnly or showHidden - those are view toggles, not search filters
       searchQuery.value = ''
       offset.value = 0
       hasMore.value = true
@@ -1141,35 +1184,46 @@ export default {
       }
     }
 
-    const selectKeyword = (keyword) => {
-      // Update filters based on keyword selection
+    const selectKeyword = (album) => {
+      // Update filters based on album selection
       filters.value.requestId = null
+      filters.value.keywords = []
 
-      // Check if this keyword album has multiple keywords (grouped keywords)
-      if (keyword.keywords && Array.isArray(keyword.keywords)) {
-        // Multi-keyword group - replace all keywords
-        // Check if all cluster keywords are already in the filter (exact match)
-        const allPresent = keyword.keywords.every(kw =>
+      // Check if this album has flexible filters (new format)
+      if (album.filters && Array.isArray(album.filters)) {
+        // Check if this album's filters are already active (toggle off)
+        const filtersMatch = album.filters.length === filters.value.filterCriteria.length &&
+          album.filters.every(f =>
+            filters.value.filterCriteria.some(fc => fc.type === f.type && fc.value === f.value)
+          )
+
+        if (filtersMatch) {
+          // Clear filters (toggle off)
+          filters.value.filterCriteria = []
+        } else {
+          // Apply this album's filters
+          filters.value.filterCriteria = [...album.filters]
+        }
+      } else if (album.keywords && Array.isArray(album.keywords)) {
+        // Legacy: Multi-keyword group
+        filters.value.filterCriteria = []
+        const allPresent = album.keywords.every(kw =>
           filters.value.keywords.includes(kw)
-        ) && filters.value.keywords.length === keyword.keywords.length
+        ) && filters.value.keywords.length === album.keywords.length
 
         if (allPresent) {
-          // Clear all keywords if this is already the active filter (toggle off)
           filters.value.keywords = []
         } else {
-          // Replace with this group's keywords
-          filters.value.keywords = [...keyword.keywords]
+          filters.value.keywords = [...album.keywords]
         }
-      } else if (keyword.id.startsWith('keyword:')) {
-        // Single keyword album - replace keywords
-        const keywordText = keyword.id.replace('keyword:', '').split('+')[0] // Get first keyword from ID
+      } else if (album.id.startsWith('keyword:')) {
+        // Legacy: Single keyword album
+        filters.value.filterCriteria = []
+        const keywordText = album.id.replace('keyword:', '').split('+')[0]
 
-        // Check if this is the only keyword in the filter
         if (filters.value.keywords.length === 1 && filters.value.keywords[0] === keywordText) {
-          // Clear if already the active filter (toggle off)
           filters.value.keywords = []
         } else {
-          // Replace with this keyword
           filters.value.keywords = [keywordText]
         }
       }
@@ -1283,6 +1337,8 @@ export default {
       canNavigatePrev,
       canNavigateNext,
       galleryTitle,
+      totalFilterCount,
+      formatFilterChip,
       gridContainer,
       filters,
       searchQuery,
