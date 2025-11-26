@@ -16,7 +16,7 @@ async function hordeRequest(endpoint, options = {}) {
   const headers = {
     'Content-Type': 'application/json',
     'apikey': apiKey,
-    'Client-Agent': 'aislingeach-demo:1.0.0:github.com/amiantos/aislingeach-web',
+    'Client-Agent': 'dreamers-guild-demo:1.0.0:github.com/amiantos/dreamers-guild',
     ...options.headers
   }
 

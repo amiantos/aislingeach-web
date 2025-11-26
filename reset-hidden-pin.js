@@ -17,7 +17,7 @@ import readline from 'readline';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const dbPath = join(__dirname, 'data', 'aislingeach.db');
+const dbPath = join(__dirname, 'data', 'dreamers-guild.db');
 
 const rl = readline.createInterface({
   input: process.stdin,

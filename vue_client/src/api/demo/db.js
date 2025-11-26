@@ -1,4 +1,4 @@
-const DB_NAME = 'aislingeach-demo'
+const DB_NAME = 'dreamers-guild-demo'
 const DB_VERSION = 1
 
 let dbInstance = null

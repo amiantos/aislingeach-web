@@ -1,4 +1,4 @@
-# Aislingeach Web
+# Dreamers Guild
 
 A locally-run web application for generating AI images using the AI Horde network.
 
@@ -140,7 +140,7 @@ A locally-run web application for generating AI images using the AI Horde networ
 ## Project Structure
 
 ```
-aislingeach-web/
+dreamers-guild/
 ├── server/                    # Express backend
 │   ├── db/                   # Database setup and models
 │   │   └── database.js       # SQLite database initialization
@@ -173,7 +173,7 @@ aislingeach-web/
 │   └── package.json
 ├── data/                     # Persistent storage (created at runtime)
 │   ├── images/              # Generated images
-│   └── aislingeach.db       # SQLite database
+│   └── dreamers-guild.db    # SQLite database
 ├── Dockerfile
 ├── docker-compose.yml
 └── package.json

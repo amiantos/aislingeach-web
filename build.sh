@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Building Aislingeach Web..."
+echo "Building Dreamers Guild..."
 
 # Install backend dependencies
 echo "Installing backend dependencies..."

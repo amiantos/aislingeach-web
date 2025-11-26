@@ -16,7 +16,7 @@ if (!fs.existsSync(imagesDir)) {
   fs.mkdirSync(imagesDir, { recursive: true });
 }
 
-const dbPath = join(dataDir, 'aislingeach.db');
+const dbPath = join(dataDir, 'dreamers-guild.db');
 const db = new Database(dbPath);
 db.pragma('journal_mode = WAL');
 

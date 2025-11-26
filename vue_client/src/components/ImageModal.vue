@@ -188,7 +188,7 @@
                 </div>
                 <a
                   :href="imageUrl"
-                  :download="`aislingeach-${image.uuid}.png`"
+                  :download="`dreamers-guild-${image.uuid}.png`"
                   class="btn-action btn-primary"
                 >
                   <i class="fa-solid fa-download"></i>

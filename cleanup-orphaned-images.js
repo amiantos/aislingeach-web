@@ -20,7 +20,7 @@ import readline from 'readline';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const dbPath = join(__dirname, 'data', 'aislingeach.db');
+const dbPath = join(__dirname, 'data', 'dreamers-guild.db');
 const imagesDir = join(__dirname, 'data', 'images');
 
 const rl = readline.createInterface({

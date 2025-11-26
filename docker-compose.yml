@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  aislingeach-web:
+  dreamers-guild:
     build: .
     ports:
       - "8005:8005"

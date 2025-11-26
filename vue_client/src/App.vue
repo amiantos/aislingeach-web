@@ -19,7 +19,7 @@
         <p class="storage-warning">
           In demo mode, all your images and settings are stored in your browser's IndexedDB.
           This data can be lost if you clear your browser data. For the full experience, consider
-          installing <a href="https://github.com/amiantos/aislingeach-web">the locally hosted application</a>.
+          installing <a href="https://github.com/amiantos/dreamers-guild">the locally hosted application</a>.
         </p>
         <div v-if="storageInfo" class="storage-stats">
           <div class="stat">

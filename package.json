@@ -1,5 +1,5 @@
 {
-  "name": "aislingeach-web",
+  "name": "dreamers-guild",
   "version": "1.0.0",
   "description": "A web-based AI Horde image generation application",
   "main": "server/server.js",

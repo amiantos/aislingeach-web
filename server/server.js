@@ -98,7 +98,7 @@ queueManager.start();
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`Aislingeach Web server running on http://localhost:${PORT}`);
+  console.log(`Dreamers Guild server running on http://localhost:${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`API Key configured: ${process.env.HORDE_API_KEY ? 'Yes' : 'No'}`);
 
