@@ -10,7 +10,7 @@
               @click="toggleEditorMode"
               :title="editorMode === 'simple' ? 'Switch to Advanced mode' : 'Switch to Simple mode'"
             >
-              {{ editorMode === 'simple' ? 'Advanced' : 'Simple' }}
+              {{ editorMode === 'simple' ? 'Advanced Mode' : 'Simple' }}
             </button>
             <button class="btn-reset" @click="resetForm" title="Reset form">
               Reset
@@ -20,18 +20,6 @@
         </div>
 
         <div class="modal-body">
-          <!-- Style Switch Confirmation Overlay -->
-          <div v-if="showStyleSwitchConfirm" class="style-switch-confirm-overlay">
-            <div class="style-switch-confirm">
-              <p>You have a style selected. What would you like to do?</p>
-              <div class="confirm-buttons">
-                <button type="button" @click="confirmSwitchToAdvanced(true)" class="btn">Apply Style & Switch</button>
-                <button type="button" @click="confirmSwitchToAdvanced(false)" class="btn">Discard Style & Switch</button>
-                <button type="button" @click="showStyleSwitchConfirm = false" class="btn btn-secondary">Cancel</button>
-              </div>
-            </div>
-          </div>
-
           <form @submit.prevent="submitRequest">
             <!-- Basic Settings Section (Always Visible) -->
             <h4 class="section-title">Basic Settings</h4>
@@ -622,6 +610,13 @@
     @add="addTi"
     @close="showTiPicker = false"
   />
+
+  <!-- Style Switch Confirmation Modal -->
+  <StyleSwitchModal
+    v-if="showStyleSwitchConfirm"
+    @confirm="confirmSwitchToAdvanced"
+    @close="showStyleSwitchConfirm = false"
+  />
 </template>
 
 <script>
@@ -638,6 +633,7 @@ import ModelPicker from './ModelPicker.vue'
 import InlineStylePicker from './InlineStylePicker.vue'
 import LoraPicker from './LoraPicker.vue'
 import LoraDetails from './LoraDetails.vue'
+import StyleSwitchModal from './StyleSwitchModal.vue'
 import { getLoraByVersionId, getTiById, getTiByVersionId } from '../api/civitai'
 import { SavedLora } from '../models/Lora'
 import { SavedTextualInversion } from '../models/TextualInversion'
@@ -654,7 +650,8 @@ export default {
     LoraPicker,
     LoraDetails,
     TextualInversionPicker,
-    TextualInversionDetails
+    TextualInversionDetails,
+    StyleSwitchModal
   },
   props: {
     initialSettings: {
@@ -2957,61 +2954,4 @@ export default {
   cursor: not-allowed;
 }
 
-/* Style Switch Confirmation Overlay */
-.style-switch-confirm-overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10;
-  border-radius: 12px;
-}
-
-.style-switch-confirm {
-  background: var(--color-surface);
-  padding: 1.5rem;
-  border-radius: 8px;
-  text-align: center;
-  max-width: 400px;
-}
-
-.style-switch-confirm p {
-  margin: 0 0 1rem 0;
-  color: var(--color-text-primary);
-}
-
-.confirm-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  justify-content: center;
-}
-
-.confirm-buttons .btn {
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: 1px solid var(--color-primary);
-  background: var(--color-primary);
-  color: white;
-}
-
-.confirm-buttons .btn:hover {
-  background: var(--color-primary-hover);
-}
-
-.confirm-buttons .btn-secondary {
-  background: transparent;
-  color: var(--color-text-tertiary);
-  border-color: #333;
-}
-
-.confirm-buttons .btn-secondary:hover {
-  background: var(--color-surface-hover);
-  color: var(--color-text-primary);
-}
 </style>
