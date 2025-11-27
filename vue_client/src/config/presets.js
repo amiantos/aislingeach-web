@@ -1,57 +1,95 @@
-// Default preset settings for quick start
-export const presets = [
+// Sample prompts for Basic mode (inspired by artbot)
+// Each prompt is paired with a style that matches its intended aesthetic
+export const samplePrompts = [
   {
-    prompt: "Jane Eyre with headphones, natural skin texture, 24mm, 4k textures, soft cinematic light, adobe lightroom, photolab, hdr, intricate, elegant, highly detailed, sharp focus, (cinematic look:1.2), soothing tones, insane details, intricate details, hyperdetailed, low contrast, soft cinematic light, dim colors, exposure blend, hdr, faded ### (deformed, distorted, disfigured:1.3), poorly drawn, bad anatomy, wrong anatomy, extra limb, missing limb, floating limbs, (mutated hands and fingers:1.4), disconnected limbs, mutation, mutated, ugly, disgusting, blurry, amputation",
-    params: {
-      sampler_name: "k_euler",
-      cfg_scale: 9.0,
-      height: 1024,
-      width: 768,
-      karras: true,
-      hires_fix: true,
-      clip_skip: 1,
-      steps: 20,
-      n: 4
-    },
-    models: ["Deliberate"]
+    prompt: "A post-apocalyptic wasteland with an amusement park in ruins in the style of vintage poster, featuring distressed textures, muted colors, and bold typography, reminiscent of mid-century advertisements or travel posters. The poster says \"WELCOME!!!\"",
+    style: "flux"
   },
   {
-    prompt: "end of the world, epic realistic, (hdr:1.4), (muted colors:1.4), apocalypse, freezing, abandoned, neutral colors, night, screen space refractions, (intricate details), (intricate details, hyperdetailed:1.2), artstation, cinematic shot, vignette, complex background, buildings, snowy ### poorly drawn",
-    params: {
-      sampler_name: "k_euler",
-      cfg_scale: 9.0,
-      height: 768,
-      width: 1024,
-      karras: true,
-      hires_fix: false,
-      clip_skip: 1,
-      steps: 20,
-      n: 4
-    },
-    models: ["Deliberate"]
+    prompt: "Schematics for a steampunk computer from the Victorian Age, showcasing long lost technology. ink and watercolor on parchment",
+    style: "albedo3.1"
   },
   {
-    prompt: "medical mask, victorian era, cinematography, intricately detailed, crafted, meticulous, magnificent, maximum details, extremely hyper aesthetic ### deformed, bad anatomy, disfigured, poorly drawn face, mutation, mutated, extra limb, ugly, disgusting, poorly drawn hands, missing limb, floating limbs, disconnected limbs, malformed hands, blurry, (mutated hands and fingers:1.2), watermark, watermarked, oversaturated, censored, distorted hands, amputation, missing hands, obese, doubled face, double hands, b&w, black and white, sepia, flowers, roses",
-    params: {
-      sampler_name: "k_euler",
-      cfg_scale: 9.0,
-      height: 1024,
-      width: 768,
-      karras: true,
-      hires_fix: false,
-      clip_skip: 1,
-      steps: 20,
-      n: 4
-    },
-    models: ["Deliberate"]
+    prompt: "A penguin dressed like a superhero, wearing a red cape and flying through the air. Cartoon comic illustration in the style of roy lichtenstein and steve ditko, centered on a white background",
+    style: "albedo3.1"
+  },
+  {
+    prompt: "Industrial urban scene featuring stark, geometric buildings lining a narrow, reflective canal. Power lines stretch overhead, enhancing the sense of depth in this minimalist black and white illustration.",
+    style: "flux"
+  },
+  {
+    prompt: "A refined watercolor portrait of a distinguished penguin in a tailored suit and aviator sunglasses, looking heroic. Vibrant colors, artistic brushstrokes",
+    style: "flux"
+  },
+  {
+    prompt: "Himalayan mountains, flat design, vibrant colors, Moebius",
+    style: "deliberate"
+  },
+  {
+    prompt: "An astronaut resting on Mars in a beach chair.",
+    style: "albedo3.1"
+  },
+  {
+    prompt: "Mountain chalet covered in snow, foggy, sunrise, sharp details, sharp focus, elegant, highly detailed, illustration, by Jordan Grimmer and Greg Rutkowski",
+    style: "albedo3.1"
+  },
+  {
+    prompt: "Graffiti-style picture of a Raven, alcohol markers and aerosol paint",
+    style: "albedo3.1"
+  },
+  {
+    prompt: "macro photograph of a brisket on a table with beer, in a blurred restaurant with depth of field, bokeh, soft diffused light, professional food photography",
+    style: "deliberate"
+  },
+  {
+    prompt: "Beautiful portrait oil painting of an aristocrat chipmunk",
+    style: "albedo3.1"
+  },
+  {
+    prompt: "San Francisco Downtown, sunset, flat design poster, minimalist, modern, 4k, epic composition, flat vector art illustration, stunning realism, long shot, unreal engine 4d",
+    style: "albedo3.1"
+  },
+  {
+    prompt: "Cartoon animation style a cool penguin wearing sunglasses, surfing on a wave. The penguin has a playful expression, standing confidently on a surfboard, with one flipper raised in a thumbs-up gesture. The wave is a vibrant blue with white frothy details, curling dynamically around the penguin. The background includes a sunny sky with a few fluffy clouds. The overall style is bright, colorful, and cheerful, typical of classic Disney animation.",
+    style: "albedo3.1"
+  },
+  {
+    prompt: "Plans for a mechanical brain, drawn in the style of Leonardo Da Vinci",
+    style: "albedo3.1"
+  },
+  {
+    prompt: "Movie poster that says \"ARTBOT!\" in the style of a 1980s comedy",
+    style: "cascade+"
   }
 ]
 
-export function getRandomPreset() {
-  return presets[Math.floor(Math.random() * presets.length)]
+export function getRandomSamplePrompt() {
+  return samplePrompts[Math.floor(Math.random() * samplePrompts.length)]
 }
 
-export function getDefaultPreset() {
-  // Return the first preset (Jane Eyre) as the default for first-time users
-  return presets[0]
+// Base defaults for form reset (minimal settings, no prompts)
+export const baseDefaults = {
+  prompt: '',
+  negativePrompt: '',
+  model: 'AlbedoBase XL (SDXL)',
+  n: 1,
+  steps: 30,
+  width: 1024,
+  height: 1024,
+  cfgScale: 7,
+  clipSkip: 1,
+  sampler: 'k_euler_a',
+  seed: '',
+  useRandomSeed: true,
+  karras: true,
+  hiresFix: false,
+  hiresFixDenoisingStrength: 0.65,
+  tiling: false,
+  transparent: false,
+  faceFix: 'none',
+  faceFixStrength: 0.5,
+  upscaler: 'none',
+  stripBackground: false,
+  loras: [],
+  tis: []
 }

@@ -12,7 +12,7 @@
             >
               {{ editorMode === 'simple' ? 'Advanced' : 'Simple' }}
             </button>
-            <button class="btn-reset" @click="loadRandomPreset" title="Load random preset">
+            <button class="btn-reset" @click="resetForm" title="Reset form">
               Reset
             </button>
             <button class="btn-close" @click="$emit('close')">×</button>
@@ -634,7 +634,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { requestsApi, imagesApi, settingsApi } from '@api'
 import { baseRequest, styleCopyParams } from '../config/baseRequest.js'
-import { getRandomPreset, getDefaultPreset } from '../config/presets.js'
+import { getRandomSamplePrompt, baseDefaults } from '../config/presets.js'
 import { useModelCache } from '../composables/useModelCache.js'
 import { useKudosEstimation } from '../composables/useKudosEstimation.js'
 import { splitPrompt, replaceNegativePlaceholder } from '../utils/promptUtils.js'
@@ -1220,9 +1220,44 @@ export default {
       estimateKudos()
     }
 
-    const loadRandomPreset = async () => {
-      const preset = getRandomPreset()
-      await loadSettings(preset)
+    const resetForm = async () => {
+      // Always start with base defaults (clears negative prompt, all hidden params)
+      Object.assign(form, { ...baseDefaults })
+
+      // Clear loras and TIs (arrays need explicit reset)
+      form.loras = []
+      form.tis = []
+
+      if (editorMode.value === 'simple') {
+        // Basic mode: Apply base defaults + random prompt + matching style
+        const sample = getRandomSamplePrompt()
+
+        // Set only the prompt (negative prompt stays empty from baseDefaults)
+        form.prompt = sample.prompt
+
+        // Set the style (this will be applied when user submits)
+        selectedStyleName.value = sample.style
+
+        // Find and set the style data from loaded styles
+        if (inlineStylePicker.value) {
+          const styleData = inlineStylePicker.value.getStyleByName(sample.style)
+          if (styleData) {
+            selectedStyleData.value = styleData
+          }
+        }
+      } else {
+        // Advanced mode: Just base defaults, no prompt, no style
+        selectedStyleName.value = ''
+        selectedStyleData.value = null
+
+        // Set model to most popular
+        const mostPopular = getMostPopularModel()
+        if (mostPopular) {
+          form.model = mostPopular.name
+        }
+      }
+
+      estimateKudos()
     }
 
     const removeStyle = () => {
@@ -1785,8 +1820,8 @@ export default {
         editorMode.value = 'advanced'
         localStorage.setItem('editorMode', 'advanced')
       } else if (!hasLastUsedSettings) {
-        // First time experience: load the default sample preset
-        await loadSettings(getDefaultPreset(), false)
+        // First time experience: load a random sample prompt with matching style
+        await resetForm()
       }
 
       // Only estimate if we have a model after loading
@@ -1884,7 +1919,7 @@ export default {
       autoExpand,
       estimateKudos,
       loadSettings,
-      loadRandomPreset,
+      resetForm,
       fetchModels,
       getSliderBackground
     }
