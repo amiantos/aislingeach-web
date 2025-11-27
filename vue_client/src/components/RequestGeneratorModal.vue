@@ -1247,14 +1247,9 @@ export default {
         }
       } else {
         // Advanced mode: Just base defaults, no prompt, no style
+        // Model is already set from baseDefaults (AlbedoBase XL)
         selectedStyleName.value = ''
         selectedStyleData.value = null
-
-        // Set model to most popular
-        const mostPopular = getMostPopularModel()
-        if (mostPopular) {
-          form.model = mostPopular.name
-        }
       }
 
       estimateKudos()

@@ -58,7 +58,7 @@ export const samplePrompts = [
     style: "albedo3.1"
   },
   {
-    prompt: "Movie poster that says \"ARTBOT!\" in the style of a 1980s comedy",
+    prompt: "Movie poster that says \"DREAMERS GUILD\" in the style of a 1980s fantasy adventure movie",
     style: "cascade+"
   }
 ]
@@ -72,7 +72,7 @@ export const baseDefaults = {
   prompt: '',
   negativePrompt: '',
   model: 'AlbedoBase XL (SDXL)',
-  n: 1,
+  n: 4,
   steps: 30,
   width: 1024,
   height: 1024,
