@@ -80,15 +80,17 @@
             </div>
 
             <!-- Inline Style Picker (Only visible in Simple mode) -->
-            <div v-if="editorMode === 'simple'" class="inline-styles-section">
+            <template v-if="editorMode === 'simple'">
               <h4 class="section-title">Style</h4>
-              <InlineStylePicker
-                ref="inlineStylePicker"
-                :current-style="selectedStyleName"
-                @select="onStyleSelect"
-                @stylesLoaded="onStylesLoaded"
-              />
-            </div>
+              <div class="inline-styles-section">
+                <InlineStylePicker
+                  ref="inlineStylePicker"
+                  :current-style="selectedStyleName"
+                  @select="onStyleSelect"
+                  @stylesLoaded="onStylesLoaded"
+                />
+              </div>
+            </template>
 
             <!-- Full Parameters (Only visible in Advanced mode) -->
             <div v-if="editorMode === 'advanced'" class="full-parameters">
@@ -2116,11 +2118,6 @@ export default {
   border-radius: 8px;
 }
 
-.inline-styles-section .section-title {
-  flex-shrink: 0;
-  margin-bottom: 0;
-  margin-top: 0;
-}
 
 .modal-footer {
   flex-shrink: 0;
@@ -2616,12 +2613,15 @@ export default {
   margin-top: 0;
 }
 
+.full-parameters .section-title:first-child {
+  margin-top: 1.5rem;
+}
+
 /* Basic Settings Section */
 .basic-settings-section {
   padding: 1rem;
   background: rgba(255, 255, 255, 0.05);
   border-radius: 8px;
-  margin-bottom: 1.5rem;
 }
 
 .basic-settings-section .form-group {

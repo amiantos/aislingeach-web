@@ -492,11 +492,12 @@ export default {
 .search-input {
   width: 100%;
   padding: 0.5rem 2rem 0.5rem 0.75rem;
-  background: var(--color-bg-elevated);
-  border: 1px solid #333;
+  background: var(--color-border);
+  border: 1px solid #444;
   border-radius: 6px;
   color: var(--color-text-primary);
   font-size: 0.9rem;
+  font-family: inherit;
 }
 
 .search-input:focus {
@@ -533,17 +534,16 @@ export default {
 
 .option-group {
   display: flex;
-  background: var(--color-bg-elevated);
   border-radius: 6px;
   overflow: hidden;
-  border: 1px solid #333;
+  border: 1px solid #444;
 }
 
 .option-group button {
   background: transparent;
   border: none;
   color: var(--color-text-tertiary);
-  padding: 0.4rem 0.6rem;
+  padding: 0.5rem 0.75rem;
   cursor: pointer;
   transition: all 0.2s;
   font-size: 0.85rem;
@@ -556,11 +556,11 @@ export default {
 
 .option-group button.active {
   color: var(--color-primary);
-  background: var(--color-surface);
+  background: var(--color-border);
 }
 
 .option-group button:not(:last-child) {
-  border-right: 1px solid #333;
+  border-right: 1px solid #444;
 }
 
 .style-grid-container {
