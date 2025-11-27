@@ -3,10 +3,18 @@
     <div class="modal-content">
       <div class="modal-wrapper">
         <div class="modal-header">
-          <h2>New Image Request</h2>
+          <h2>New Dream</h2>
           <div class="header-actions">
-            <button class="btn-reset" @click="loadRandomPreset" title="Load random preset">
-              Reset
+            <button
+              class="btn-mode-toggle"
+              @click="toggleEditorMode"
+              :title="editorMode === 'simple' ? 'Switch to Advanced mode' : 'Switch to Simple mode'"
+            >
+              {{ editorMode === 'simple' ? 'Advanced Mode' : 'Style Mode' }}
+            </button>
+            <button class="btn-reset" @click="resetForm" :title="editorMode === 'simple' ? 'Random prompt' : 'Clear form'">
+              <i v-if="editorMode === 'simple'" class="fas fa-shuffle"></i>
+              <span v-else>Clear</span>
             </button>
             <button class="btn-close" @click="$emit('close')">×</button>
           </div>
@@ -30,7 +38,7 @@
                 ></textarea>
               </div>
 
-              <div class="form-group">
+              <div v-if="editorMode === 'advanced'" class="form-group">
                 <label for="negative_prompt">Negative Prompt</label>
                 <textarea
                   id="negative_prompt"
@@ -58,38 +66,23 @@
                 </div>
               </div>
 
-              <div class="form-group">
-                <label>Style</label>
-                <div class="selector-button" @click="showStylePicker = true">
-                  <span class="selector-value">{{ selectedStyleName || 'None' }}</span>
-                  <span class="selector-arrow">›</span>
-                </div>
-
-                <!-- Apply/Remove Style Buttons (When Style is Selected) -->
-                <div v-if="selectedStyleName" class="style-actions">
-                  <button
-                    type="button"
-                    @click="applyStyle"
-                    class="btn btn-apply-style"
-                  >
-                    Apply Style
-                  </button>
-                  <button
-                    type="button"
-                    @click="removeStyle"
-                    class="btn btn-remove-style"
-                  >
-                    Remove Style
-                  </button>
-                  <p class="style-info-text">
-                    While you have a style selected, all generation settings are controlled by the style. Remove or apply the style to access more generation settings.
-                  </p>
-                </div>
-              </div>
             </div>
 
-            <!-- Full Parameters (Only Visible When NO Style is Selected) -->
-            <div v-if="!selectedStyleName" class="full-parameters">
+            <!-- Inline Style Picker (Only visible in Simple mode) -->
+            <template v-if="editorMode === 'simple'">
+              <h4 class="section-title">Style</h4>
+              <div class="inline-styles-section">
+                <InlineStylePicker
+                  ref="inlineStylePicker"
+                  :current-style="selectedStyleName"
+                  @select="onStyleSelect"
+                  @stylesLoaded="onStylesLoaded"
+                />
+              </div>
+            </template>
+
+            <!-- Full Parameters (Only visible in Advanced mode) -->
+            <div v-if="editorMode === 'advanced'" class="full-parameters">
               <!-- Dimensions Section -->
               <h4 class="section-title">Dimensions</h4>
               <div class="dimensions-section">
@@ -566,7 +559,7 @@
           <!-- Form Actions -->
           <div class="form-actions">
             <button type="submit" @click="submitRequest" class="btn btn-submit" :disabled="submitting">
-              <i class="fa-regular fa-paper-plane paper-plane-icon"></i> {{ submitting ? 'Submitting...' : 'Send Request' }}
+              <i class="fa-regular fa-paper-plane paper-plane-icon"></i> {{ submitting ? 'Sending...' : 'Send Dream' }}
             </button>
           </div>
         </div>
@@ -603,14 +596,6 @@
     @close="showModelPicker = false"
   />
 
-  <!-- Style Picker Modal -->
-  <StylePicker
-    v-if="showStylePicker"
-    :currentStyle="selectedStyleName"
-    @select="onStyleSelect"
-    @close="showStylePicker = false"
-  />
-
   <!-- LoRA Picker Modal -->
   <LoraPicker
     v-if="showLoraPicker"
@@ -626,23 +611,31 @@
     @add="addTi"
     @close="showTiPicker = false"
   />
+
+  <!-- Style Switch Confirmation Modal -->
+  <StyleSwitchModal
+    v-if="showStyleSwitchConfirm"
+    @confirm="confirmSwitchToAdvanced"
+    @close="showStyleSwitchConfirm = false"
+  />
 </template>
 
 <script>
 import { ref, reactive, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { requestsApi, imagesApi, settingsApi } from '@api'
 import { baseRequest, styleCopyParams } from '../config/baseRequest.js'
-import { getRandomPreset, getDefaultPreset } from '../config/presets.js'
+import { getRandomSamplePrompt, baseDefaults } from '../config/presets.js'
 import { useModelCache } from '../composables/useModelCache.js'
 import { useKudosEstimation } from '../composables/useKudosEstimation.js'
 import { splitPrompt, replaceNegativePlaceholder } from '../utils/promptUtils.js'
 import { useSettingsStore } from '../stores/settingsStore.js'
 import axios from 'axios'
 import ModelPicker from './ModelPicker.vue'
-import StylePicker from './StylePicker.vue'
+import InlineStylePicker from './InlineStylePicker.vue'
 import LoraPicker from './LoraPicker.vue'
 import LoraDetails from './LoraDetails.vue'
-import { getLoraById, getLoraByVersionId, getTiById, getTiByVersionId } from '../api/civitai'
+import StyleSwitchModal from './StyleSwitchModal.vue'
+import { getLoraByVersionId, getTiById, getTiByVersionId } from '../api/civitai'
 import { SavedLora } from '../models/Lora'
 import { SavedTextualInversion } from '../models/TextualInversion'
 import { useLoraRecent } from '../composables/useLoraCache'
@@ -654,11 +647,12 @@ export default {
   name: 'RequestGeneratorModal',
   components: {
     ModelPicker,
-    StylePicker,
+    InlineStylePicker,
     LoraPicker,
     LoraDetails,
     TextualInversionPicker,
-    TextualInversionDetails
+    TextualInversionDetails,
+    StyleSwitchModal
   },
   props: {
     initialSettings: {
@@ -675,7 +669,6 @@ export default {
     const settingsStore = useSettingsStore()
     const submitting = ref(false)
     const showModelPicker = ref(false)
-    const showStylePicker = ref(false)
     const showLoraPicker = ref(false)
     const showLoraDetails = ref(false)
     const selectedLoraForDetails = ref(null)
@@ -686,6 +679,10 @@ export default {
     const aspectRatio = ref(1)
     const selectedStyleName = ref('')
     const selectedStyleData = ref(null)
+    const editorMode = ref(localStorage.getItem('generatorEditorMode') || 'simple')
+    const showStyleSwitchConfirm = ref(false)
+    const inlineStylePicker = ref(null)
+    const allStyles = ref([])
 
     const form = reactive({
       prompt: '',
@@ -767,18 +764,12 @@ export default {
     }
 
     // Save last used settings (to both localStorage and server)
-    // Now saves the actual Horde request params, not form state
-    // This way loading uses the same enrichment logic as historical requests
-    const saveLastUsedSettings = async (requestParams) => {
+    // Saves the raw form settings BEFORE style processing
+    // This preserves the user's original prompt for next session
+    const saveLastUsedSettings = async (settingsToSave) => {
       try {
-        // Save the actual request that was sent to Horde
+        // Save the raw form settings (before style processing)
         // This includes minimal LoRA data that will be enriched on load
-        const settingsToSave = {
-          prompt: requestParams.prompt,
-          models: requestParams.models,
-          params: requestParams.params
-        }
-
         // Save to localStorage immediately for instant access
         localStorage.setItem('lastUsedSettings', JSON.stringify(settingsToSave))
 
@@ -797,8 +788,32 @@ export default {
     }
 
     const onStyleSelect = (style) => {
-      selectedStyleName.value = style.name
-      selectedStyleData.value = style
+      if (style) {
+        selectedStyleName.value = style.name
+        selectedStyleData.value = style
+        // Persist selected style for Simple mode
+        localStorage.setItem('selectedStyle', JSON.stringify(style))
+      }
+    }
+
+    // Handler for when inline style picker loads styles
+    const onStylesLoaded = (styles) => {
+      allStyles.value = styles
+      // If in Simple mode and no style selected, select the default
+      if (editorMode.value === 'simple' && !selectedStyleName.value) {
+        selectDefaultStyle()
+      }
+    }
+
+    // Select the default style (albedo3.1) or first available
+    const selectDefaultStyle = () => {
+      const defaultStyle = allStyles.value.find(s => s.name === 'albedo3.1')
+      if (defaultStyle) {
+        onStyleSelect(defaultStyle)
+      } else if (allStyles.value.length > 0) {
+        // Fallback to first style if albedo3.1 not found
+        onStyleSelect(allStyles.value[0])
+      }
     }
 
     // LoRA handlers
@@ -889,9 +904,7 @@ export default {
 
     // Textual Inversion handlers
     const addTi = (ti) => {
-      console.log('[RequestGeneratorModal] addTi called with:', ti)
       form.tis.push(ti)
-      console.log('[RequestGeneratorModal] form.tis after push:', form.tis)
       estimateKudos()
     }
 
@@ -930,7 +943,6 @@ export default {
     const showTiInfo = async (ti) => {
       // Fetch full model data to ensure we have complete metadata
       try {
-        console.log('[showTiInfo] Fetching TI by ID:', { id: ti.id, name: ti.name, versionId: ti.versionId })
         const fullModelData = await getTiById(ti.id)
         selectedTiForDetails.value = fullModelData
         showTiDetails.value = true
@@ -940,7 +952,6 @@ export default {
         // Try fetching by version ID as a fallback
         if (ti.versionId) {
           try {
-            console.log('[showTiInfo] Trying to fetch by version ID:', ti.versionId)
             const fullModelData = await getTiByVersionId(ti.versionId)
             fullModelData.versionId = ti.versionId
             selectedTiForDetails.value = fullModelData
@@ -951,13 +962,6 @@ export default {
           }
         }
 
-        console.log('[showTiInfo] Falling back to enriched data:', {
-          id: ti.id,
-          name: ti.name,
-          versionId: ti.versionId,
-          hasModelVersions: !!ti.modelVersions,
-          versionCount: ti.modelVersions?.length
-        })
         // Final fallback: use the enriched data we already have
         // This handles cases where the model was deleted or is unavailable on CivitAI
         selectedTiForDetails.value = ti
@@ -986,16 +990,13 @@ export default {
         try {
           // AI Horde format stores version ID in 'name' field
           const versionId = ti.versionId || ti.name
-          console.log('[enrichTis] Processing TI:', { ti, versionId })
           if (versionId) {
             const fullData = await getTiByVersionId(versionId)
-            console.log('[enrichTis] Got fullData:', { modelId: fullData.id, name: fullData.name, versionCount: fullData.modelVersions?.length })
             const enrichedTi = SavedTextualInversion.fromEmbedding(fullData, versionId, {
               strength: ti.strength || 0.0,
               // If inject_ti is not provided, default to 'none' (not 'prompt')
               inject_ti: ti.inject_ti !== undefined ? ti.inject_ti : 'none'
             })
-            console.log('[enrichTis] Created enrichedTi:', { versionId: enrichedTi.versionId, name: enrichedTi.name })
             enriched.push(enrichedTi)
           } else {
             enriched.push(ti)
@@ -1194,14 +1195,48 @@ export default {
       estimateKudos()
     }
 
-    const loadRandomPreset = async () => {
-      const preset = getRandomPreset()
-      await loadSettings(preset)
+    const resetForm = async () => {
+      // Always start with base defaults (clears negative prompt, all hidden params)
+      Object.assign(form, { ...baseDefaults })
+
+      // Clear loras and TIs (arrays need explicit reset)
+      form.loras = []
+      form.tis = []
+
+      if (editorMode.value === 'simple') {
+        // Basic mode: Apply base defaults + random prompt + matching style
+        const sample = getRandomSamplePrompt()
+
+        // Set only the prompt (negative prompt stays empty from baseDefaults)
+        form.prompt = sample.prompt
+
+        // Set the style (this will be applied when user submits)
+        selectedStyleName.value = sample.style
+
+        // Find and set the style data from loaded styles
+        if (inlineStylePicker.value) {
+          const styleData = inlineStylePicker.value.getStyleByName(sample.style)
+          if (styleData) {
+            selectedStyleData.value = styleData
+            // Persist the style selection
+            localStorage.setItem('selectedStyle', JSON.stringify(styleData))
+          }
+        }
+      } else {
+        // Advanced mode: Just base defaults, no prompt, no style
+        // Model is already set from baseDefaults (AlbedoBase XL)
+        selectedStyleName.value = ''
+        selectedStyleData.value = null
+      }
+
+      estimateKudos()
     }
 
     const removeStyle = () => {
       selectedStyleName.value = ''
       selectedStyleData.value = null
+      // Clear persisted style
+      localStorage.removeItem('selectedStyle')
     }
 
     const applyStyle = async () => {
@@ -1256,6 +1291,27 @@ export default {
       removeStyle()
 
       estimateKudos()
+    }
+
+    // Toggle between Simple and Advanced editor modes
+    const toggleEditorMode = () => {
+      if (editorMode.value === 'simple' && selectedStyleName.value) {
+        // Show confirmation dialog when switching to Advanced with a style selected
+        showStyleSwitchConfirm.value = true
+      } else {
+        editorMode.value = editorMode.value === 'simple' ? 'advanced' : 'simple'
+      }
+    }
+
+    // Handle confirmation when switching to Advanced mode with a style
+    const confirmSwitchToAdvanced = async (shouldApplyStyle) => {
+      if (shouldApplyStyle) {
+        await applyStyle()
+      } else {
+        removeStyle()
+      }
+      editorMode.value = 'advanced'
+      showStyleSwitchConfirm.value = false
     }
 
     // Calculate GCD for aspect ratio simplification
@@ -1352,6 +1408,87 @@ export default {
         prompt: generationText,
         negativePrompt: null
       }
+    }
+
+    // Build raw settings for saving - preserves original form values without style processing
+    const buildRawSettingsForSave = () => {
+      // Combine prompt and negative prompt with ### separator (Horde format)
+      let promptToSave = form.prompt
+      if (form.negativePrompt) {
+        promptToSave = `${form.prompt} ### ${form.negativePrompt}`
+      }
+
+      const settings = {
+        prompt: promptToSave,
+        models: [form.model],
+        params: {
+          n: form.n,
+          steps: form.steps,
+          width: form.width,
+          height: form.height,
+          cfg_scale: form.cfgScale,
+          sampler_name: form.sampler,
+          karras: form.karras,
+          hires_fix: form.hiresFix,
+          clip_skip: form.clipSkip,
+          tiling: form.tiling
+        }
+      }
+
+      if (form.hiresFix) {
+        settings.params.hires_fix_denoising_strength = form.hiresFixDenoisingStrength
+      }
+
+      if (!form.useRandomSeed && form.seed) {
+        settings.params.seed = form.seed
+      }
+
+      // Save LoRAs in minimal format
+      if (form.loras && form.loras.length > 0) {
+        settings.params.loras = form.loras.map(lora => {
+          if (lora.toHordeFormat && typeof lora.toHordeFormat === 'function') {
+            return lora.toHordeFormat()
+          }
+          return {
+            name: lora.name || String(lora.civitaiId),
+            model: lora.strength || 1,
+            clip: lora.clip || 1,
+            is_version: true
+          }
+        })
+      }
+
+      // Save TIs in minimal format
+      if (form.tis && form.tis.length > 0) {
+        settings.params.tis = form.tis.map(ti => {
+          if (ti.toHordeFormat && typeof ti.toHordeFormat === 'function') {
+            return ti.toHordeFormat()
+          }
+          return {
+            name: ti.name || String(ti.civitaiId),
+            strength: ti.strength || 1,
+            inject_ti: ti.inject || 'prompt'
+          }
+        })
+      }
+
+      // Save post-processing
+      const postProcessing = []
+      if (form.faceFix !== 'none') {
+        postProcessing.push(form.faceFix)
+        settings.params.facefixer_strength = form.faceFixStrength
+      }
+      if (form.upscaler && form.upscaler !== 'none') {
+        postProcessing.push(form.upscaler)
+      }
+      if (form.stripBackground) {
+        postProcessing.push('strip_background')
+      }
+      if (postProcessing.length > 0) {
+        settings.params.post_processing = postProcessing
+      }
+
+      return settings
     }
 
     const buildRequestParams = () => {
@@ -1524,6 +1661,10 @@ export default {
       try {
         submitting.value = true
 
+        // Build the raw settings to save BEFORE style processing
+        // This preserves the user's original prompt and form values
+        const rawSettingsToSave = buildRawSettingsForSave()
+
         const params = buildRequestParams()
 
         await requestsApi.create({
@@ -1531,8 +1672,8 @@ export default {
           params
         })
 
-        // Save settings for next time (save the actual request, not form state)
-        await saveLastUsedSettings(params)
+        // Save the RAW form settings (before style processing) for next time
+        await saveLastUsedSettings(rawSettingsToSave)
 
         // Add LoRAs to recent list (after successful submission)
         // Note: Cache is automatically populated by server when fetching via CivitAI API
@@ -1625,6 +1766,11 @@ export default {
       }
     )
 
+    // Persist editor mode preference to localStorage
+    watch(editorMode, (newMode) => {
+      localStorage.setItem('generatorEditorMode', newMode)
+    })
+
     onMounted(async () => {
       await fetchModels()
 
@@ -1642,14 +1788,32 @@ export default {
       // Then load initial settings from props if provided (this will override generation params but not worker prefs)
       if (props.initialSettings) {
         await loadSettings(props.initialSettings, props.includeSeed)
+        // Switch to advanced mode when loading settings from an image
+        // (watch on editorMode handles localStorage persistence)
+        editorMode.value = 'advanced'
       } else if (!hasLastUsedSettings) {
-        // First time experience: load the default sample preset
-        await loadSettings(getDefaultPreset(), false)
+        // First time experience: load a random sample prompt with matching style
+        await resetForm()
       }
 
       // Only estimate if we have a model after loading
       if (form.model) {
         estimateKudos()
+      }
+
+      // Restore saved style in Simple mode (only if no initialSettings provided)
+      if (editorMode.value === 'simple' && !props.initialSettings) {
+        const savedStyle = localStorage.getItem('selectedStyle')
+        if (savedStyle) {
+          try {
+            const style = JSON.parse(savedStyle)
+            selectedStyleName.value = style.name
+            selectedStyleData.value = style
+          } catch (e) {
+            console.error('Error parsing saved style:', e)
+            localStorage.removeItem('selectedStyle')
+          }
+        }
       }
 
       // Auto-expand textareas on initial load
@@ -1681,7 +1845,6 @@ export default {
       estimateError,
       settingsStore,
       showModelPicker,
-      showStylePicker,
       showLoraPicker,
       showLoraDetails,
       selectedLoraForDetails,
@@ -1695,6 +1858,9 @@ export default {
       submitRequest,
       onModelSelect,
       onStyleSelect,
+      onStylesLoaded,
+      inlineStylePicker,
+      allStyles,
       addLora,
       removeLora,
       onLoraStrengthChange,
@@ -1714,13 +1880,17 @@ export default {
       removeTiFromDetails,
       applyStyle,
       removeStyle,
+      editorMode,
+      showStyleSwitchConfirm,
+      toggleEditorMode,
+      confirmSwitchToAdvanced,
       onAspectLockToggle,
       onDimensionChange,
       swapDimensions,
       autoExpand,
       estimateKudos,
       loadSettings,
-      loadRandomPreset,
+      resetForm,
       fetchModels,
       getSliderBackground
     }
@@ -1880,6 +2050,24 @@ export default {
   border-color: var(--color-primary);
 }
 
+.btn-mode-toggle {
+  padding: 0.5rem 1rem;
+  background: transparent;
+  border: 1px solid #333;
+  border-radius: 6px;
+  color: var(--color-text-tertiary);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-mode-toggle:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+  border-color: var(--color-primary);
+}
+
 .btn-close {
   width: 32px;
   height: 32px;
@@ -1897,11 +2085,37 @@ export default {
 }
 
 .modal-body {
+  position: relative;
   padding: 1.5rem;
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
 }
+
+.modal-body form {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.basic-settings-section {
+  flex-shrink: 0;
+}
+
+.inline-styles-section {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+}
+
 
 .modal-footer {
   flex-shrink: 0;
@@ -2397,12 +2611,15 @@ export default {
   margin-top: 0;
 }
 
+.full-parameters .section-title:first-child {
+  margin-top: 1.5rem;
+}
+
 /* Basic Settings Section */
 .basic-settings-section {
   padding: 1rem;
   background: rgba(255, 255, 255, 0.05);
   border-radius: 8px;
-  margin-bottom: 1.5rem;
 }
 
 .basic-settings-section .form-group {
@@ -2737,4 +2954,5 @@ export default {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
 </style>
