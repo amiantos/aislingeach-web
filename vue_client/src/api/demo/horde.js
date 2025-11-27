@@ -1,3 +1,5 @@
+import { throttle } from './rateLimiter.js'
+
 const HORDE_API_BASE = 'https://aihorde.net/api/v2'
 
 function getApiKey() {
@@ -10,6 +12,9 @@ function getApiKey() {
 }
 
 async function hordeRequest(endpoint, options = {}) {
+  // Apply rate limiting before each API call
+  await throttle()
+
   const apiKey = getApiKey()
   const url = `${HORDE_API_BASE}${endpoint}`
 
@@ -64,9 +69,16 @@ export async function getHordeWorkers() {
     return []
   }
 
-  const workers = await Promise.all(
-    user.worker_ids.map(id => hordeRequest(`/workers/${id}`))
-  )
+  // Fetch workers sequentially to respect rate limiting
+  const workers = []
+  for (const id of user.worker_ids) {
+    try {
+      const worker = await hordeRequest(`/workers/${id}`)
+      workers.push(worker)
+    } catch (err) {
+      console.error(`Error fetching worker ${id}:`, err.message)
+    }
+  }
   return workers
 }
 
@@ -83,9 +95,16 @@ export async function getHordeSharedKeys() {
     return []
   }
 
-  const keys = await Promise.all(
-    user.sharedkey_ids.map(id => hordeRequest(`/sharedkeys/${id}`))
-  )
+  // Fetch shared keys sequentially to respect rate limiting
+  const keys = []
+  for (const id of user.sharedkey_ids) {
+    try {
+      const key = await hordeRequest(`/sharedkeys/${id}`)
+      keys.push(key)
+    } catch (err) {
+      console.error(`Error fetching shared key ${id}:`, err.message)
+    }
+  }
   return keys
 }
 
