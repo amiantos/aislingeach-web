@@ -636,7 +636,7 @@ import ModelPicker from './ModelPicker.vue'
 import InlineStylePicker from './InlineStylePicker.vue'
 import LoraPicker from './LoraPicker.vue'
 import LoraDetails from './LoraDetails.vue'
-import { getLoraById, getLoraByVersionId, getTiById, getTiByVersionId } from '../api/civitai'
+import { getLoraByVersionId, getTiById, getTiByVersionId } from '../api/civitai'
 import { SavedLora } from '../models/Lora'
 import { SavedTextualInversion } from '../models/TextualInversion'
 import { useLoraRecent } from '../composables/useLoraCache'
@@ -904,9 +904,7 @@ export default {
 
     // Textual Inversion handlers
     const addTi = (ti) => {
-      console.log('[RequestGeneratorModal] addTi called with:', ti)
       form.tis.push(ti)
-      console.log('[RequestGeneratorModal] form.tis after push:', form.tis)
       estimateKudos()
     }
 
@@ -945,7 +943,6 @@ export default {
     const showTiInfo = async (ti) => {
       // Fetch full model data to ensure we have complete metadata
       try {
-        console.log('[showTiInfo] Fetching TI by ID:', { id: ti.id, name: ti.name, versionId: ti.versionId })
         const fullModelData = await getTiById(ti.id)
         selectedTiForDetails.value = fullModelData
         showTiDetails.value = true
@@ -955,7 +952,6 @@ export default {
         // Try fetching by version ID as a fallback
         if (ti.versionId) {
           try {
-            console.log('[showTiInfo] Trying to fetch by version ID:', ti.versionId)
             const fullModelData = await getTiByVersionId(ti.versionId)
             fullModelData.versionId = ti.versionId
             selectedTiForDetails.value = fullModelData
@@ -966,13 +962,6 @@ export default {
           }
         }
 
-        console.log('[showTiInfo] Falling back to enriched data:', {
-          id: ti.id,
-          name: ti.name,
-          versionId: ti.versionId,
-          hasModelVersions: !!ti.modelVersions,
-          versionCount: ti.modelVersions?.length
-        })
         // Final fallback: use the enriched data we already have
         // This handles cases where the model was deleted or is unavailable on CivitAI
         selectedTiForDetails.value = ti
@@ -1001,16 +990,13 @@ export default {
         try {
           // AI Horde format stores version ID in 'name' field
           const versionId = ti.versionId || ti.name
-          console.log('[enrichTis] Processing TI:', { ti, versionId })
           if (versionId) {
             const fullData = await getTiByVersionId(versionId)
-            console.log('[enrichTis] Got fullData:', { modelId: fullData.id, name: fullData.name, versionCount: fullData.modelVersions?.length })
             const enrichedTi = SavedTextualInversion.fromEmbedding(fullData, versionId, {
               strength: ti.strength || 0.0,
               // If inject_ti is not provided, default to 'none' (not 'prompt')
               inject_ti: ti.inject_ti !== undefined ? ti.inject_ti : 'none'
             })
-            console.log('[enrichTis] Created enrichedTi:', { versionId: enrichedTi.versionId, name: enrichedTi.name })
             enriched.push(enrichedTi)
           } else {
             enriched.push(ti)
@@ -1803,8 +1789,8 @@ export default {
       if (props.initialSettings) {
         await loadSettings(props.initialSettings, props.includeSeed)
         // Switch to advanced mode when loading settings from an image
+        // (watch on editorMode handles localStorage persistence)
         editorMode.value = 'advanced'
-        localStorage.setItem('editorMode', 'advanced')
       } else if (!hasLastUsedSettings) {
         // First time experience: load a random sample prompt with matching style
         await resetForm()
