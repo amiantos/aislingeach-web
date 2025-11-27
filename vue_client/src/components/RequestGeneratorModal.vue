@@ -1781,6 +1781,9 @@ export default {
       // Then load initial settings from props if provided (this will override generation params but not worker prefs)
       if (props.initialSettings) {
         await loadSettings(props.initialSettings, props.includeSeed)
+        // Switch to advanced mode when loading settings from an image
+        editorMode.value = 'advanced'
+        localStorage.setItem('editorMode', 'advanced')
       } else if (!hasLastUsedSettings) {
         // First time experience: load the default sample preset
         await loadSettings(getDefaultPreset(), false)
