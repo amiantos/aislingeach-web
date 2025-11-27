@@ -77,34 +77,17 @@
                 </div>
               </div>
 
-              <div v-if="editorMode === 'simple'" class="form-group">
-                <label>Style</label>
-                <div class="selector-button" @click="showStylePicker = true">
-                  <span class="selector-value">{{ selectedStyleName || 'None' }}</span>
-                  <span class="selector-arrow">›</span>
-                </div>
+            </div>
 
-                <!-- Apply/Remove Style Buttons (When Style is Selected) -->
-                <div v-if="selectedStyleName" class="style-actions">
-                  <button
-                    type="button"
-                    @click="applyStyle"
-                    class="btn btn-apply-style"
-                  >
-                    Apply Style
-                  </button>
-                  <button
-                    type="button"
-                    @click="removeStyle"
-                    class="btn btn-remove-style"
-                  >
-                    Remove Style
-                  </button>
-                  <p class="style-info-text">
-                    While you have a style selected, all generation settings are controlled by the style. Remove or apply the style to access more generation settings.
-                  </p>
-                </div>
-              </div>
+            <!-- Inline Style Picker (Only visible in Simple mode) -->
+            <div v-if="editorMode === 'simple'" class="inline-styles-section">
+              <h4 class="section-title">Style</h4>
+              <InlineStylePicker
+                ref="inlineStylePicker"
+                :current-style="selectedStyleName"
+                @select="onStyleSelect"
+                @stylesLoaded="onStylesLoaded"
+              />
             </div>
 
             <!-- Full Parameters (Only visible in Advanced mode) -->
@@ -659,6 +642,7 @@ import { useSettingsStore } from '../stores/settingsStore.js'
 import axios from 'axios'
 import ModelPicker from './ModelPicker.vue'
 import StylePicker from './StylePicker.vue'
+import InlineStylePicker from './InlineStylePicker.vue'
 import LoraPicker from './LoraPicker.vue'
 import LoraDetails from './LoraDetails.vue'
 import { getLoraById, getLoraByVersionId, getTiById, getTiByVersionId } from '../api/civitai'
@@ -674,6 +658,7 @@ export default {
   components: {
     ModelPicker,
     StylePicker,
+    InlineStylePicker,
     LoraPicker,
     LoraDetails,
     TextualInversionPicker,
@@ -707,6 +692,8 @@ export default {
     const selectedStyleData = ref(null)
     const editorMode = ref(localStorage.getItem('generatorEditorMode') || 'simple')
     const showStyleSwitchConfirm = ref(false)
+    const inlineStylePicker = ref(null)
+    const allStyles = ref([])
 
     const form = reactive({
       prompt: '',
@@ -812,10 +799,32 @@ export default {
     }
 
     const onStyleSelect = (style) => {
-      selectedStyleName.value = style.name
-      selectedStyleData.value = style
-      // Persist selected style for Simple mode
-      localStorage.setItem('selectedStyle', JSON.stringify(style))
+      if (style) {
+        selectedStyleName.value = style.name
+        selectedStyleData.value = style
+        // Persist selected style for Simple mode
+        localStorage.setItem('selectedStyle', JSON.stringify(style))
+      }
+    }
+
+    // Handler for when inline style picker loads styles
+    const onStylesLoaded = (styles) => {
+      allStyles.value = styles
+      // If in Simple mode and no style selected, select the default
+      if (editorMode.value === 'simple' && !selectedStyleName.value) {
+        selectDefaultStyle()
+      }
+    }
+
+    // Select the default style (albedo3.1) or first available
+    const selectDefaultStyle = () => {
+      const defaultStyle = allStyles.value.find(s => s.name === 'albedo3.1')
+      if (defaultStyle) {
+        onStyleSelect(defaultStyle)
+      } else if (allStyles.value.length > 0) {
+        // Fallback to first style if albedo3.1 not found
+        onStyleSelect(allStyles.value[0])
+      }
     }
 
     // LoRA handlers
@@ -1840,6 +1849,9 @@ export default {
       submitRequest,
       onModelSelect,
       onStyleSelect,
+      onStylesLoaded,
+      inlineStylePicker,
+      allStyles,
       addLora,
       removeLora,
       onLoraStrengthChange,
@@ -2069,6 +2081,36 @@ export default {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-body form {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.basic-settings-section {
+  flex-shrink: 0;
+}
+
+.inline-styles-section {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+}
+
+.inline-styles-section .section-title {
+  flex-shrink: 0;
+  margin-bottom: 0;
+  margin-top: 0;
 }
 
 .modal-footer {
