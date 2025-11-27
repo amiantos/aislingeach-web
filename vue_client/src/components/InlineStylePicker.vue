@@ -9,6 +9,15 @@
           placeholder="Search styles..."
           class="search-input"
         />
+        <button
+          v-if="searchQuery"
+          type="button"
+          class="btn-clear-search"
+          @click="searchQuery = ''"
+          title="Clear search"
+        >
+          <i class="fa-solid fa-xmark"></i>
+        </button>
       </div>
       <div class="preview-options">
         <!-- Subject selector -->
@@ -166,6 +175,13 @@
 <script>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { stylesApi, settingsApi } from '@api'
+
+// Module-level cache for styles (persists across component mounts)
+const stylesCache = {
+  data: null,
+  timestamp: 0,
+  TTL: 5 * 60 * 1000 // 5 minutes
+}
 
 export default {
   name: 'InlineStylePicker',
@@ -345,10 +361,33 @@ export default {
     }
 
     const fetchStyles = async () => {
+      const now = Date.now()
+
+      // Check if we have valid cached data
+      if (stylesCache.data && (now - stylesCache.timestamp) < stylesCache.TTL) {
+        console.log('[Styles] Using cached styles')
+        styles.value = stylesCache.data.allStyles || []
+        serverCategories.value = stylesCache.data.categorizedStyles || []
+
+        // Extract favorites from cached response
+        const favoritesCategory = serverCategories.value.find(c => c.name === 'Favorites')
+        if (favoritesCategory) {
+          favorites.value = favoritesCategory.styles.map(s => s.name)
+        }
+
+        loadingStyles.value = false
+        emit('stylesLoaded', styles.value)
+        return
+      }
+
       try {
         loadingStyles.value = true
         error.value = null
         const response = await stylesApi.getAll()
+
+        // Cache the response
+        stylesCache.data = response.data
+        stylesCache.timestamp = now
 
         styles.value = response.data.allStyles || []
         serverCategories.value = response.data.categorizedStyles || []
@@ -387,7 +426,22 @@ export default {
       savePreviewPreferences()
     })
 
+    // Watch for search query changes and save to localStorage
+    watch(searchQuery, (newValue) => {
+      if (newValue) {
+        localStorage.setItem('styleSearchQuery', newValue)
+      } else {
+        localStorage.removeItem('styleSearchQuery')
+      }
+    })
+
     onMounted(async () => {
+      // Restore search query from localStorage
+      const savedSearch = localStorage.getItem('styleSearchQuery')
+      if (savedSearch) {
+        searchQuery.value = savedSearch
+      }
+
       await loadPreviewPreferences()
       await fetchStyles()
     })
@@ -432,11 +486,12 @@ export default {
 .search-container {
   flex: 1;
   min-width: 150px;
+  position: relative;
 }
 
 .search-input {
   width: 100%;
-  padding: 0.5rem 0.75rem;
+  padding: 0.5rem 2rem 0.5rem 0.75rem;
   background: var(--color-bg-elevated);
   border: 1px solid #333;
   border-radius: 6px;
@@ -447,6 +502,27 @@ export default {
 .search-input:focus {
   outline: none;
   border-color: var(--color-primary);
+}
+
+.btn-clear-search {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  padding: 0.25rem;
+  font-size: 0.85rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-clear-search:hover {
+  color: var(--color-text-primary);
 }
 
 .preview-options {

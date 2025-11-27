@@ -1243,6 +1243,8 @@ export default {
           const styleData = inlineStylePicker.value.getStyleByName(sample.style)
           if (styleData) {
             selectedStyleData.value = styleData
+            // Persist the style selection
+            localStorage.setItem('selectedStyle', JSON.stringify(styleData))
           }
         }
       } else {
