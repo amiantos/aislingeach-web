@@ -3,17 +3,18 @@
     <div class="modal-content">
       <div class="modal-wrapper">
         <div class="modal-header">
-          <h2>New Image Request</h2>
+          <h2>New Dream</h2>
           <div class="header-actions">
             <button
               class="btn-mode-toggle"
               @click="toggleEditorMode"
               :title="editorMode === 'simple' ? 'Switch to Advanced mode' : 'Switch to Simple mode'"
             >
-              {{ editorMode === 'simple' ? 'Advanced Mode' : 'Simple' }}
+              {{ editorMode === 'simple' ? 'Advanced Mode' : 'Style Mode' }}
             </button>
-            <button class="btn-reset" @click="resetForm" title="Reset form">
-              Reset
+            <button class="btn-reset" @click="resetForm" :title="editorMode === 'simple' ? 'Random prompt' : 'Clear form'">
+              <i v-if="editorMode === 'simple'" class="fas fa-shuffle"></i>
+              <span v-else>Clear</span>
             </button>
             <button class="btn-close" @click="$emit('close')">×</button>
           </div>
@@ -558,7 +559,7 @@
           <!-- Form Actions -->
           <div class="form-actions">
             <button type="submit" @click="submitRequest" class="btn btn-submit" :disabled="submitting">
-              <i class="fa-regular fa-paper-plane paper-plane-icon"></i> {{ submitting ? 'Submitting...' : 'Send Request' }}
+              <i class="fa-regular fa-paper-plane paper-plane-icon"></i> {{ submitting ? 'Sending...' : 'Send Dream' }}
             </button>
           </div>
         </div>
