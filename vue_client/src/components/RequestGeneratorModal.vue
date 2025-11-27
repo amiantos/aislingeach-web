@@ -605,14 +605,6 @@
     @close="showModelPicker = false"
   />
 
-  <!-- Style Picker Modal -->
-  <StylePicker
-    v-if="showStylePicker"
-    :currentStyle="selectedStyleName"
-    @select="onStyleSelect"
-    @close="showStylePicker = false"
-  />
-
   <!-- LoRA Picker Modal -->
   <LoraPicker
     v-if="showLoraPicker"
@@ -641,7 +633,6 @@ import { splitPrompt, replaceNegativePlaceholder } from '../utils/promptUtils.js
 import { useSettingsStore } from '../stores/settingsStore.js'
 import axios from 'axios'
 import ModelPicker from './ModelPicker.vue'
-import StylePicker from './StylePicker.vue'
 import InlineStylePicker from './InlineStylePicker.vue'
 import LoraPicker from './LoraPicker.vue'
 import LoraDetails from './LoraDetails.vue'
@@ -657,7 +648,6 @@ export default {
   name: 'RequestGeneratorModal',
   components: {
     ModelPicker,
-    StylePicker,
     InlineStylePicker,
     LoraPicker,
     LoraDetails,
@@ -679,7 +669,6 @@ export default {
     const settingsStore = useSettingsStore()
     const submitting = ref(false)
     const showModelPicker = ref(false)
-    const showStylePicker = ref(false)
     const showLoraPicker = ref(false)
     const showLoraDetails = ref(false)
     const selectedLoraForDetails = ref(null)
@@ -1870,7 +1859,6 @@ export default {
       estimateError,
       settingsStore,
       showModelPicker,
-      showStylePicker,
       showLoraPicker,
       showLoraDetails,
       selectedLoraForDetails,
