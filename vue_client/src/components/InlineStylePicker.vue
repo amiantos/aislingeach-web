@@ -112,6 +112,9 @@
                 :class="`preview-${previewOptions.type}`"
                 :style="getPreviewStyle(selectedStyleData)"
               >
+                <div class="selected-indicator">
+                  <i class="fa-solid fa-check"></i>
+                </div>
                 <button
                   type="button"
                   class="btn-favorite"
@@ -150,6 +153,9 @@
                 :class="`preview-${previewOptions.type}`"
                 :style="getPreviewStyle(style)"
               >
+                <div v-if="selectedStyle === style.name" class="selected-indicator">
+                  <i class="fa-solid fa-check"></i>
+                </div>
                 <button
                   type="button"
                   class="btn-favorite"
@@ -677,6 +683,26 @@ export default {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+}
+
+.selected-indicator {
+  position: absolute;
+  top: 0.35rem;
+  left: 0.35rem;
+  background: var(--color-primary);
+  border: none;
+  color: white;
+  font-size: 0.7rem;
+  padding: 0.35rem;
+  line-height: 1;
+  border-radius: 50%;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .btn-favorite {
