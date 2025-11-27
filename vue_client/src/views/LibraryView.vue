@@ -339,6 +339,7 @@ export default {
     const imagePolling = useImagePolling({
       filters,
       images,
+      totalCount,
       onNewImages: () => {
         // Refresh keywords when new images are added
         fetchKeywords()

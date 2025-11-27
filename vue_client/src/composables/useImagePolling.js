@@ -8,10 +8,11 @@ import { imagesApi } from '@api'
  * @param {Object} options - Configuration options
  * @param {import('vue').Ref} options.filters - Filters ref for image queries
  * @param {import('vue').Ref} options.images - Images ref to update with new images
+ * @param {import('vue').Ref} options.totalCount - Total count ref to update
  * @param {Function} options.onNewImages - Callback when new images are added
  * @returns {Object} Polling controls and state
  */
-export function useImagePolling({ filters, images, onNewImages }) {
+export function useImagePolling({ filters, images, totalCount, onNewImages }) {
   let imagesPollInterval = null
   let finalImageCheckTimeout = null
   const wasActive = ref(false)
@@ -30,6 +31,12 @@ export function useImagePolling({ filters, images, onNewImages }) {
       const response = await imagesApi.getAll(20, 0, filters.value)
       // Backend returns { data: images, total }, axios wraps it in response.data
       const newImages = (response.data && response.data.data) ? response.data.data : []
+      const newTotal = response.data?.total
+
+      // Update total count if provided and changed
+      if (totalCount && newTotal !== undefined && newTotal !== totalCount.value) {
+        totalCount.value = newTotal
+      }
 
       if (newImages.length === 0) return
 
