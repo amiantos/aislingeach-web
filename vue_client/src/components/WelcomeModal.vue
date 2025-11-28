@@ -7,28 +7,9 @@
     :showClose="false"
   >
     <div class="welcome-modal-content">
-      <h2>{{ title }}</h2>
-
-      <!-- Demo Mode Content -->
-      <template v-if="isDemoMode">
-        <p class="welcome-text">
-          This is a demo version of Dreamers Guild, running entirely in your browser using local storage APIs.
-        </p>
-        <p class="welcome-text">
-          While the demo is great for trying out the app, it has a few limitations compared to the self-hosted version:
-        </p>
-        <ul class="limitations-list">
-          <li>Limited CivitAI search support</li>
-          <li>Storage is constrained to browser limits</li>
-          <li>Data can be lost if you clear browser data</li>
-        </ul>
-        <p class="welcome-text">
-          If you enjoy this demo, consider installing the self-hosted version on your home network for the full experience!
-        </p>
-      </template>
-
-      <!-- Non-Demo Mode Content -->
-      <template v-else>
+      <!-- Step 1: AI Horde Introduction (shown for both modes) -->
+      <template v-if="step === 1">
+        <h2>Welcome to Dreamers Guild</h2>
         <p class="welcome-text">
           Dreamers Guild is a beautiful web interface for generating AI images using <strong>AI Horde</strong>,
           a free, crowdsourced GPU network.
@@ -41,35 +22,14 @@
           <strong>Getting started:</strong> You can generate images immediately as an anonymous user.
           However, registering for a free API key will give you faster generation times and priority in the queue.
         </p>
-      </template>
 
-      <!-- Checkbox -->
-      <label class="dont-show-checkbox">
-        <input type="checkbox" v-model="dontShowAgain" />
-        <span>Don't show this again</span>
-      </label>
+        <!-- Checkbox (only on final step for non-demo, or step 1 for non-demo) -->
+        <label v-if="!isDemoMode" class="dont-show-checkbox">
+          <input type="checkbox" v-model="dontShowAgain" />
+          <span>Don't show this again</span>
+        </label>
 
-      <!-- Action Buttons -->
-      <div class="button-group">
-        <template v-if="isDemoMode">
-          <a
-            href="https://github.com/amiantos/aislingeach-web"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="btn btn-secondary"
-          >
-            View on GitHub
-          </a>
-          <a
-            href="https://github.com/amiantos/aislingeach-web#installation"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="btn btn-secondary"
-          >
-            Self-Hosted Setup
-          </a>
-        </template>
-        <template v-else>
+        <div class="button-group">
           <a
             href="https://aihorde.net"
             target="_blank"
@@ -86,17 +46,63 @@
           >
             Get API Key
           </a>
-        </template>
-        <button @click="handleClose" class="btn btn-primary">
-          Get Started
-        </button>
-      </div>
+          <button @click="handleNext" class="btn btn-primary">
+            {{ isDemoMode ? 'Next' : 'Get Started' }}
+          </button>
+        </div>
+      </template>
+
+      <!-- Step 2: Demo-specific content (only for demo mode) -->
+      <template v-else-if="step === 2">
+        <h2>About This Demo</h2>
+        <p class="welcome-text">
+          This is a demo version of Dreamers Guild, running entirely in your browser using local storage APIs.
+        </p>
+        <p class="welcome-text">
+          While the demo is great for trying out the app, it has a few limitations compared to the self-hosted version:
+        </p>
+        <ul class="limitations-list">
+          <li>Limited CivitAI search support</li>
+          <li>Storage is constrained to browser limits</li>
+          <li>Data can be lost if you clear browser data</li>
+        </ul>
+        <p class="welcome-text">
+          If you enjoy this demo, consider installing the self-hosted version on your home network for the full experience!
+        </p>
+
+        <label class="dont-show-checkbox">
+          <input type="checkbox" v-model="dontShowAgain" />
+          <span>Don't show this again</span>
+        </label>
+
+        <div class="button-group">
+          <a
+            href="https://github.com/amiantos/aislingeach-web"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="btn btn-secondary"
+          >
+            View on GitHub
+          </a>
+          <a
+            href="https://github.com/amiantos/aislingeach-web#installation"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="btn btn-secondary"
+          >
+            Self-Hosted Setup
+          </a>
+          <button @click="handleClose" class="btn btn-primary">
+            Get Started
+          </button>
+        </div>
+      </template>
     </div>
   </BaseModal>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import BaseModal from './BaseModal.vue'
 
 const props = defineProps({
@@ -109,11 +115,16 @@ const props = defineProps({
 const emit = defineEmits(['close'])
 
 const isDemoMode = typeof __DEMO_MODE__ !== 'undefined' && __DEMO_MODE__
+const step = ref(1)
 const dontShowAgain = ref(false)
 
-const title = computed(() => {
-  return isDemoMode ? 'Welcome to Dreamers Guild (DEMO)' : 'Welcome to Dreamers Guild'
-})
+const handleNext = () => {
+  if (isDemoMode) {
+    step.value = 2
+  } else {
+    handleClose()
+  }
+}
 
 const handleClose = () => {
   emit('close', { dontShowAgain: dontShowAgain.value })
