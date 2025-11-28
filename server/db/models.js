@@ -82,8 +82,8 @@ export const GeneratedImage = {
     const stmt = db.prepare(`
       INSERT INTO generated_images
       (uuid, request_id, date_created, backend, prompt_simple, full_request, full_response,
-       image_path, thumbnail_path, is_favorite, is_hidden, is_trashed)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       image_path, thumbnail_path, is_favorite, is_hidden)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -97,8 +97,7 @@ export const GeneratedImage = {
       data.imagePath || null,
       data.thumbnailPath || null,
       data.isFavorite ? 1 : 0,
-      data.isHidden ? 1 : 0,
-      data.isTrashed ? 1 : 0
+      data.isHidden ? 1 : 0
     );
 
     return this.findById(uuid);
@@ -110,16 +109,11 @@ export const GeneratedImage = {
   },
 
   findAll(limit = 100, offset = 0, filters = {}) {
-    let query = `
-      SELECT * FROM generated_images
-      WHERE is_trashed = 0
-    `;
-
+    let query = `SELECT * FROM generated_images WHERE 1=1`;
     const params = [];
 
     // Apply filters
     if (filters.showFavorites) {
-      // Show favorited images
       query += ` AND is_favorite = 1`;
     }
 
@@ -128,11 +122,7 @@ export const GeneratedImage = {
       query += ` AND is_hidden = 0`;
     }
 
-    query += `
-      ORDER BY date_created DESC
-      LIMIT ? OFFSET ?
-    `;
-
+    query += ` ORDER BY date_created DESC LIMIT ? OFFSET ?`;
     params.push(limit, offset);
 
     const stmt = db.prepare(query);
@@ -140,12 +130,8 @@ export const GeneratedImage = {
   },
 
   countAll(filters = {}) {
-    let query = `
-      SELECT COUNT(*) as count FROM generated_images
-      WHERE is_trashed = 0
-    `;
+    let query = `SELECT COUNT(*) as count FROM generated_images WHERE 1=1`;
 
-    // Apply same filters as findAll
     if (filters.showFavorites) {
       query += ` AND is_favorite = 1`;
     }
@@ -162,7 +148,7 @@ export const GeneratedImage = {
   findByRequestId(requestId, limit = 100) {
     const stmt = db.prepare(`
       SELECT * FROM generated_images
-      WHERE request_id = ? AND is_trashed = 0
+      WHERE request_id = ?
       ORDER BY date_created DESC
       LIMIT ?
     `);
@@ -172,18 +158,14 @@ export const GeneratedImage = {
   countByRequestId(requestId) {
     const stmt = db.prepare(`
       SELECT COUNT(*) as count FROM generated_images
-      WHERE request_id = ? AND is_trashed = 0
+      WHERE request_id = ?
     `);
     const result = stmt.get(requestId);
     return result.count;
   },
 
   findByKeywords(keywords, limit = 100, offset = 0, filters = {}) {
-    let query = `
-      SELECT * FROM generated_images
-      WHERE is_trashed = 0
-    `;
-
+    let query = `SELECT * FROM generated_images WHERE 1=1`;
     const params = [];
 
     // Split keywords by comma and add AND conditions for each
@@ -193,22 +175,15 @@ export const GeneratedImage = {
       params.push(`%${keyword}%`);
     });
 
-    // Apply filters
     if (filters.showFavorites) {
-      // Show favorited images
       query += ` AND is_favorite = 1`;
     }
 
-    // Exclude hidden images unless includeHidden is true
     if (!filters.includeHidden) {
       query += ` AND is_hidden = 0`;
     }
 
-    query += `
-      ORDER BY date_created DESC
-      LIMIT ? OFFSET ?
-    `;
-
+    query += ` ORDER BY date_created DESC LIMIT ? OFFSET ?`;
     params.push(limit, offset);
 
     const stmt = db.prepare(query);
@@ -216,21 +191,15 @@ export const GeneratedImage = {
   },
 
   countByKeywords(keywords, filters = {}) {
-    let query = `
-      SELECT COUNT(*) as count FROM generated_images
-      WHERE is_trashed = 0
-    `;
-
+    let query = `SELECT COUNT(*) as count FROM generated_images WHERE 1=1`;
     const params = [];
 
-    // Split keywords by comma and add AND conditions for each (same as findByKeywords)
     const keywordList = keywords.split(',').map(k => k.trim()).filter(k => k.length > 0);
     keywordList.forEach(keyword => {
       query += ` AND prompt_simple LIKE ?`;
       params.push(`%${keyword}%`);
     });
 
-    // Apply same filters as findByKeywords
     if (filters.showFavorites) {
       query += ` AND is_favorite = 1`;
     }
@@ -257,13 +226,9 @@ export const GeneratedImage = {
       return this.findAll(limit, offset, globalFilters);
     }
 
-    let query = `
-      SELECT * FROM generated_images
-      WHERE is_trashed = 0
-    `;
+    let query = `SELECT * FROM generated_images WHERE 1=1`;
     const params = [];
 
-    // Apply each filter criterion
     for (const filter of filterCriteria) {
       switch (filter.type) {
         case 'keyword':
@@ -271,12 +236,10 @@ export const GeneratedImage = {
           params.push(`%${filter.value}%`);
           break;
         case 'lora_id':
-          // Search in full_request JSON for LoRA
           query += ` AND full_request LIKE ?`;
           params.push(`%"name":"${filter.value}"%`);
           break;
         case 'model':
-          // Search in full_request JSON for model
           query += ` AND full_request LIKE ?`;
           params.push(`%"models":["${filter.value}"%`);
           break;
@@ -287,7 +250,6 @@ export const GeneratedImage = {
       }
     }
 
-    // Apply global filters
     if (globalFilters.showFavorites) {
       query += ` AND is_favorite = 1`;
     }
@@ -295,10 +257,7 @@ export const GeneratedImage = {
       query += ` AND is_hidden = 0`;
     }
 
-    query += `
-      ORDER BY date_created DESC
-      LIMIT ? OFFSET ?
-    `;
+    query += ` ORDER BY date_created DESC LIMIT ? OFFSET ?`;
     params.push(limit, offset);
 
     const stmt = db.prepare(query);
@@ -313,13 +272,9 @@ export const GeneratedImage = {
       return this.countAll(globalFilters);
     }
 
-    let query = `
-      SELECT COUNT(*) as count FROM generated_images
-      WHERE is_trashed = 0
-    `;
+    let query = `SELECT COUNT(*) as count FROM generated_images WHERE 1=1`;
     const params = [];
 
-    // Apply each filter criterion (same logic as findByFilters)
     for (const filter of filterCriteria) {
       switch (filter.type) {
         case 'keyword':
@@ -341,7 +296,6 @@ export const GeneratedImage = {
       }
     }
 
-    // Apply global filters
     if (globalFilters.showFavorites) {
       query += ` AND is_favorite = 1`;
     }
@@ -361,8 +315,6 @@ export const GeneratedImage = {
     if (data.requestId !== undefined) { fields.push('request_id = ?'); values.push(data.requestId); }
     if (data.isFavorite !== undefined) { fields.push('is_favorite = ?'); values.push(data.isFavorite ? 1 : 0); }
     if (data.isHidden !== undefined) { fields.push('is_hidden = ?'); values.push(data.isHidden ? 1 : 0); }
-    if (data.isTrashed !== undefined) { fields.push('is_trashed = ?'); values.push(data.isTrashed ? 1 : 0); }
-    if (data.dateTrashed !== undefined) { fields.push('date_trashed = ?'); values.push(data.dateTrashed); }
 
     if (fields.length === 0) return this.findById(uuid);
 

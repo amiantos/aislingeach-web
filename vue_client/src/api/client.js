@@ -101,6 +101,10 @@ export const imagesApi = {
     return apiClient.put('/images/batch', { imageIds, updates })
   },
 
+  batchDelete(imageIds) {
+    return apiClient.delete('/images/batch', { data: { imageIds } })
+  },
+
   estimate(params) {
     return apiClient.post('/requests/estimate', { params })
   }

@@ -601,7 +601,7 @@ function generateAlbumIdFromFilters(filters) {
  */
 function generateAlbumsForFilters(showFavorites, includeHidden) {
   // Build base query for filtering
-  let baseWhere = 'is_trashed = 0';
+  let baseWhere = '1=1';
   if (showFavorites) {
     baseWhere += ' AND is_favorite = 1';
   }

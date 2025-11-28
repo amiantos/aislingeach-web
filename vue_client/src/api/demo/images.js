@@ -220,6 +220,16 @@ export const imagesApi = {
     return { success: true }
   },
 
+  async batchDelete(imageIds) {
+    for (const id of imageIds) {
+      await db.remove('imageBlobs', id)
+      await db.remove('images', id)
+      revokeBlobUrl(`thumbnail-${id}`)
+      revokeBlobUrl(`image-${id}`)
+    }
+    return { success: true }
+  },
+
   async estimate(params) {
     try {
       const result = await estimateKudos(params)

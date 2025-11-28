@@ -779,7 +779,7 @@ export default {
         const imageIds = Array.from(selectedImages.value)
         const deleteCount = imageIds.length
 
-        await imagesApi.batchUpdate(imageIds, { isTrashed: true })
+        await imagesApi.batchDelete(imageIds)
 
         // Remove deleted images from the array
         images.value = images.value.filter(img => !selectedImages.value.has(img.uuid))

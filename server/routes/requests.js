@@ -143,7 +143,7 @@ router.delete('/', async (req, res) => {
         }
 
         // Check for any remaining references
-        const allImages = db.prepare('SELECT uuid, is_trashed FROM generated_images WHERE request_id = ?').all(request.uuid);
+        const allImages = db.prepare('SELECT uuid FROM generated_images WHERE request_id = ?').all(request.uuid);
         const allDownloads = db.prepare('SELECT uuid FROM horde_pending_downloads WHERE request_id = ?').all(request.uuid);
 
         if (allImages.length > 0) {

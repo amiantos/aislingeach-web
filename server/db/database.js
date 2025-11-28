@@ -59,7 +59,6 @@ function initDatabase() {
       uuid TEXT PRIMARY KEY,
       request_id TEXT,
       date_created INTEGER NOT NULL,
-      date_trashed INTEGER,
       backend TEXT,
       prompt_simple TEXT,
       full_request TEXT,
@@ -67,9 +66,7 @@ function initDatabase() {
       image_path TEXT,
       thumbnail_path TEXT,
       is_favorite INTEGER DEFAULT 0,
-      is_hidden INTEGER DEFAULT 0,
-      is_trashed INTEGER DEFAULT 0,
-      FOREIGN KEY (request_id) REFERENCES horde_requests(uuid)
+      is_hidden INTEGER DEFAULT 0
     )
   `);
 
@@ -80,8 +77,7 @@ function initDatabase() {
       request_id TEXT,
       uri TEXT,
       full_request TEXT,
-      full_response TEXT,
-      FOREIGN KEY (request_id) REFERENCES horde_requests(uuid)
+      full_response TEXT
     )
   `);
 
@@ -119,6 +115,54 @@ function initDatabase() {
 
   // Run migrations for horde_requests table
   addColumnIfNotExists('horde_requests', 'horde_id', 'TEXT', 'AI Horde request ID for status checking');
+
+  // Migration: Delete any trashed images (soft-delete cleanup)
+  // This permanently removes images that were previously soft-deleted
+  try {
+    // Check if is_trashed column exists (for existing databases)
+    const tableInfo = db.prepare("PRAGMA table_info(generated_images)").all();
+    const hasTrashedColumn = tableInfo.some(col => col.name === 'is_trashed');
+
+    if (hasTrashedColumn) {
+      const trashedImages = db.prepare('SELECT uuid, image_path, thumbnail_path FROM generated_images WHERE is_trashed = 1').all();
+
+      if (trashedImages.length > 0) {
+        console.log(`Migration: Permanently deleting ${trashedImages.length} trashed images...`);
+
+        for (const image of trashedImages) {
+          // Delete image file
+          if (image.image_path) {
+            const imagePath = join(imagesDir, image.image_path);
+            try {
+              if (fs.existsSync(imagePath)) {
+                fs.unlinkSync(imagePath);
+              }
+            } catch (err) {
+              console.error(`Error deleting image file ${image.image_path}:`, err.message);
+            }
+          }
+
+          // Delete thumbnail file
+          if (image.thumbnail_path) {
+            const thumbnailPath = join(imagesDir, image.thumbnail_path);
+            try {
+              if (fs.existsSync(thumbnailPath)) {
+                fs.unlinkSync(thumbnailPath);
+              }
+            } catch (err) {
+              console.error(`Error deleting thumbnail file ${image.thumbnail_path}:`, err.message);
+            }
+          }
+        }
+
+        // Delete all trashed records from database
+        const deleteResult = db.prepare('DELETE FROM generated_images WHERE is_trashed = 1').run();
+        console.log(`Migration: Deleted ${deleteResult.changes} trashed image records`);
+      }
+    }
+  } catch (error) {
+    console.error('Migration error cleaning up trashed images:', error.message);
+  }
 
   // LoRA metadata cache table
   db.exec(`

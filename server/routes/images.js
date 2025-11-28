@@ -122,15 +122,11 @@ router.get('/:id/thumbnail', (req, res) => {
 // Update image metadata
 router.patch('/:id', (req, res) => {
   try {
-    const { isFavorite, isHidden, isTrashed } = req.body;
+    const { isFavorite, isHidden } = req.body;
 
     const updates = {};
     if (isFavorite !== undefined) updates.isFavorite = isFavorite;
     if (isHidden !== undefined) updates.isHidden = isHidden;
-    if (isTrashed !== undefined) {
-      updates.isTrashed = isTrashed;
-      if (isTrashed) updates.dateTrashed = Date.now();
-    }
 
     const image = GeneratedImage.update(req.params.id, updates);
     res.json(image);
@@ -156,10 +152,6 @@ router.put('/batch', (req, res) => {
     const updateData = {};
     if (updates.isFavorite !== undefined) updateData.isFavorite = updates.isFavorite;
     if (updates.isHidden !== undefined) updateData.isHidden = updates.isHidden;
-    if (updates.isTrashed !== undefined) {
-      updateData.isTrashed = updates.isTrashed;
-      if (updates.isTrashed) updateData.dateTrashed = Date.now();
-    }
 
     const results = imageIds.map(id => {
       try {
@@ -181,6 +173,38 @@ router.put('/batch', (req, res) => {
   } catch (error) {
     console.error('Error in batch update:', error);
     res.status(500).json({ error: 'Failed to batch update images' });
+  }
+});
+
+// Batch delete images
+router.delete('/batch', (req, res) => {
+  try {
+    const { imageIds } = req.body;
+
+    if (!Array.isArray(imageIds) || imageIds.length === 0) {
+      return res.status(400).json({ error: 'imageIds must be a non-empty array' });
+    }
+
+    const results = imageIds.map(id => {
+      try {
+        GeneratedImage.delete(id);
+        return { id, success: true };
+      } catch (error) {
+        console.error(`Error deleting image ${id}:`, error);
+        return { id, success: false, error: error.message };
+      }
+    });
+
+    const successCount = results.filter(r => r.success).length;
+    res.json({
+      success: true,
+      deleted: successCount,
+      total: imageIds.length,
+      results
+    });
+  } catch (error) {
+    console.error('Error in batch delete:', error);
+    res.status(500).json({ error: 'Failed to batch delete images' });
   }
 });
 
