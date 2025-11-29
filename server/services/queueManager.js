@@ -379,110 +379,109 @@ class QueueManager {
       }
 
       for (const download of pendingDownloads) {
-        try {
-          console.log(`[Download] Starting download ${download.uuid.substring(0, 8)}... from ${download.uri}`);
+        console.log(`[Download] Starting download ${download.uuid.substring(0, 8)}... from ${download.uri}`);
 
-          // Mark as being downloaded to prevent duplicates
-          this.activeDownloads.add(download.uuid);
+        // Mark as being downloaded to prevent duplicates
+        this.activeDownloads.add(download.uuid);
 
-          // Delete pending download immediately to prevent duplicate processing
-          // (do this before the download in case of errors/crashes)
-          HordePendingDownload.delete(download.uuid);
+        // Delete pending download immediately to prevent duplicate processing
+        // (do this before the download in case of errors/crashes)
+        HordePendingDownload.delete(download.uuid);
 
-          // Download the image
-          console.log(`[Download] → Fetching image data for ${download.uuid.substring(0, 8)}...`);
-          const imageData = await hordeApi.downloadImage(download.uri);
-          console.log(`[Download] ← Received ${imageData.length} bytes`);
+        // Retry loop - keep trying until success or 404
+        let success = false;
+        while (!success) {
+          try {
+            // Download the image
+            console.log(`[Download] → Fetching image data for ${download.uuid.substring(0, 8)}...`);
+            const imageData = await hordeApi.downloadImage(download.uri);
+            console.log(`[Download] ← Received ${imageData.length} bytes`);
 
-          // Detect image format using sharp (with timeout)
-          const metadata = await withTimeout(
-            sharp(imageData).metadata(),
-            30000,
-            'Image metadata detection'
-          );
-          const imageFormat = metadata.format; // e.g., 'png', 'webp', 'jpeg'
-          console.log(`[Download] Detected image format: ${imageFormat}`);
+            // Detect image format using sharp (with timeout)
+            const metadata = await withTimeout(
+              sharp(imageData).metadata(),
+              30000,
+              'Image metadata detection'
+            );
+            const imageFormat = metadata.format; // e.g., 'png', 'webp', 'jpeg'
+            console.log(`[Download] Detected image format: ${imageFormat}`);
 
-          // Generate filename with correct extension
-          const imageUuid = uuidv4();
-          const imageExtension = imageFormat === 'jpeg' ? 'jpg' : imageFormat;
-          const imagePath = path.join(imagesDir, `${imageUuid}.${imageExtension}`);
-          const thumbnailPath = path.join(imagesDir, `${imageUuid}_thumb.webp`);
+            // Generate filename with correct extension
+            const imageUuid = uuidv4();
+            const imageExtension = imageFormat === 'jpeg' ? 'jpg' : imageFormat;
+            const imagePath = path.join(imagesDir, `${imageUuid}.${imageExtension}`);
+            const thumbnailPath = path.join(imagesDir, `${imageUuid}_thumb.webp`);
 
-          // Save original image
-          console.log(`[Download] Saving image to ${imageUuid}.${imageExtension}`);
-          fs.writeFileSync(imagePath, imageData);
+            // Save original image
+            console.log(`[Download] Saving image to ${imageUuid}.${imageExtension}`);
+            fs.writeFileSync(imagePath, imageData);
 
-          // Generate square thumbnail (512x512) in WEBP format (with timeout)
-          console.log(`[Download] Generating thumbnail ${imageUuid}_thumb.webp`);
-          await withTimeout(
-            sharp(imageData)
-              .resize(512, 512, {
-                fit: 'cover',
-                position: 'center'
-              })
-              .webp({ quality: 85 })
-              .toFile(thumbnailPath),
-            30000,
-            'Thumbnail generation'
-          );
+            // Generate square thumbnail (512x512) in WEBP format (with timeout)
+            console.log(`[Download] Generating thumbnail ${imageUuid}_thumb.webp`);
+            await withTimeout(
+              sharp(imageData)
+                .resize(512, 512, {
+                  fit: 'cover',
+                  position: 'center'
+                })
+                .webp({ quality: 85 })
+                .toFile(thumbnailPath),
+              30000,
+              'Thumbnail generation'
+            );
 
-          // Get request info for metadata
-          const request = HordeRequest.findById(download.request_id);
+            // Get request info for metadata
+            const request = HordeRequest.findById(download.request_id);
 
-          // Save to database
-          GeneratedImage.create({
-            uuid: imageUuid,
-            requestId: download.request_id,
-            backend: 'AI Horde',
-            promptSimple: request?.prompt,
-            fullRequest: request?.full_request,
-            fullResponse: download.full_response,
-            imagePath: `${imageUuid}.${imageExtension}`,
-            thumbnailPath: `${imageUuid}_thumb.webp`
+            // Save to database
+            GeneratedImage.create({
+              uuid: imageUuid,
+              requestId: download.request_id,
+              backend: 'AI Horde',
+              promptSimple: request?.prompt,
+              fullRequest: request?.full_request,
+              fullResponse: download.full_response,
+              imagePath: `${imageUuid}.${imageExtension}`,
+              thumbnailPath: `${imageUuid}_thumb.webp`
+            });
+
+            console.log(`[Download] ✓ Downloaded and saved image ${imageUuid.substring(0, 8)}... (download ${download.uuid.substring(0, 8)}...)`);
+            success = true;
+
+          } catch (error) {
+            // Check if this is a 404 error - give up permanently
+            const is404 = error.response?.status === 404;
+
+            if (is404) {
+              console.error(`[Download] ✗ 404 error for ${download.uuid.substring(0, 8)}... - image not found, giving up`);
+              break; // Exit retry loop
+            }
+
+            // For timeouts and other errors, wait and retry
+            console.error(`[Download] ✗ Error downloading ${download.uuid.substring(0, 8)}...: ${error.message}`);
+            console.log(`[Download] Waiting 5 seconds before retry...`);
+            await new Promise(resolve => setTimeout(resolve, 5000));
+          }
+        }
+
+        // Remove from active downloads
+        this.activeDownloads.delete(download.uuid);
+
+        // Check if all downloads for this request are complete
+        const remainingDownloads = HordePendingDownload.findAll()
+          .filter(d => d.request_id === download.request_id);
+
+        if (remainingDownloads.length === 0) {
+          console.log(`[Download] All downloads complete for request ${download.request_id.substring(0, 8)}...`);
+          HordeRequest.update(download.request_id, {
+            status: 'completed',
+            message: 'All images downloaded'
           });
 
-          // Remove from active downloads
-          this.activeDownloads.delete(download.uuid);
-
-          console.log(`[Download] ✓ Downloaded and saved image ${imageUuid.substring(0, 8)}... (download ${download.uuid.substring(0, 8)}...)`);
-
-          // Check if all downloads for this request are complete
-          const remainingDownloads = HordePendingDownload.findAll()
-            .filter(d => d.request_id === download.request_id);
-
-          if (remainingDownloads.length === 0) {
-            console.log(`[Download] All downloads complete for request ${download.request_id.substring(0, 8)}...`);
-            HordeRequest.update(download.request_id, {
-              status: 'completed',
-              message: 'All images downloaded'
-            });
-
-            // Invalidate album cache since new images were added
-            albumCache.invalidate();
-          } else {
-            console.log(`[Download] ${remainingDownloads.length} downloads remaining for request ${download.request_id.substring(0, 8)}...`);
-          }
-        } catch (error) {
-          console.error(`[Download] ✗ Error downloading image ${download.uuid.substring(0, 8)}...:`, error.message);
-          console.error(`[Download] Image download failed and will not be retried`);
-          // Remove from active downloads (note: pending download was already deleted to prevent duplicates)
-          this.activeDownloads.delete(download.uuid);
-
-          // Check if all downloads for this request are now complete (even with this failure)
-          const remainingDownloads = HordePendingDownload.findAll()
-            .filter(d => d.request_id === download.request_id);
-
-          if (remainingDownloads.length === 0) {
-            console.log(`[Download] All downloads complete for request ${download.request_id.substring(0, 8)}... (some may have failed)`);
-            HordeRequest.update(download.request_id, {
-              status: 'completed',
-              message: 'Downloads finished'
-            });
-
-            // Invalidate album cache since processing is complete
-            albumCache.invalidate();
-          }
+          // Invalidate album cache since new images were added
+          albumCache.invalidate();
+        } else {
+          console.log(`[Download] ${remainingDownloads.length} downloads remaining for request ${download.request_id.substring(0, 8)}...`);
         }
 
         // Wait 1 second between downloads to give the connection breathing room
