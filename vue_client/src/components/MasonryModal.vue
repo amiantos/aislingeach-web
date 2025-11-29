@@ -62,154 +62,105 @@ export default {
       return { width: 512, height: 512 }
     }
 
-    // Linear partition algorithm using dynamic programming
-    // Partitions `seq` (array of aspect ratios) into `k` groups
-    // minimizing the maximum sum of any group
-    const linearPartition = (seq, k) => {
-      const n = seq.length
-      if (n === 0) return []
-      if (k >= n) return seq.map((_, i) => [i])
-      if (k <= 1) return [seq.map((_, i) => i)]
+    // BSP (Binary Space Partitioning) layout algorithm
+    // Recursively subdivides the viewport to create a collage that fills all space
+    const bspLayout = (images, rect) => {
+      if (images.length === 0) return []
 
-      // Prefix sums for O(1) range sum queries
-      const prefixSum = [0]
-      for (const val of seq) {
-        prefixSum.push(prefixSum[prefixSum.length - 1] + val)
-      }
-      const rangeSum = (i, j) => prefixSum[j + 1] - prefixSum[i]
-
-      // DP tables
-      const dp = Array(n).fill(null).map(() => Array(k).fill(Infinity))
-      const dividers = Array(n).fill(null).map(() => Array(k).fill(0))
-
-      // Base case: 1 partition (all items in single group)
-      for (let i = 0; i < n; i++) {
-        dp[i][0] = rangeSum(0, i)
+      // Base case: single image fills its rectangle
+      if (images.length === 1) {
+        return [{ image: images[0], rect }]
       }
 
-      // Fill DP table
-      for (let j = 1; j < k; j++) {
-        for (let i = j; i < n; i++) {
-          for (let x = j - 1; x < i; x++) {
-            const cost = Math.max(dp[x][j - 1], rangeSum(x + 1, i))
-            if (cost < dp[i][j]) {
-              dp[i][j] = cost
-              dividers[i][j] = x
-            }
-          }
+      // Decide split direction based on rectangle shape
+      const rectAspect = rect.width / rect.height
+      const splitVertically = rectAspect >= 1 // wide rect = vertical split (side by side)
+
+      // Calculate total aspect for proportional splitting
+      const totalAspect = images.reduce((sum, img) => sum + img.aspect, 0)
+
+      // Find optimal split point - aim for roughly equal visual weight
+      let cumAspect = 0
+      let splitIdx = 1
+
+      for (let i = 0; i < images.length - 1; i++) {
+        cumAspect += images[i].aspect
+        const ratio = cumAspect / totalAspect
+        // Find split point closest to 50%, but ensure at least 1 image per side
+        if (ratio >= 0.4) {
+          splitIdx = i + 1
+          break
         }
       }
 
-      // Reconstruct the partition from dividers
-      const result = []
-      let idx = n - 1
-      let part = k - 1
-      while (part >= 0) {
-        const start = part > 0 ? dividers[idx][part] + 1 : 0
-        const row = []
-        for (let i = start; i <= idx; i++) {
-          row.push(i)
-        }
-        result.unshift(row)
-        idx = part > 0 ? dividers[idx][part] : -1
-        part--
+      const group1 = images.slice(0, splitIdx)
+      const group2 = images.slice(splitIdx)
+
+      // Calculate split position based on aspect ratios of each group
+      const aspect1 = group1.reduce((s, img) => s + img.aspect, 0)
+      const aspect2 = group2.reduce((s, img) => s + img.aspect, 0)
+
+      let rect1, rect2
+
+      if (splitVertically) {
+        // Split left/right
+        const ratio = aspect1 / (aspect1 + aspect2)
+        const splitX = rect.x + rect.width * ratio
+        rect1 = { x: rect.x, y: rect.y, width: rect.width * ratio, height: rect.height }
+        rect2 = { x: splitX, y: rect.y, width: rect.width * (1 - ratio), height: rect.height }
+      } else {
+        // Split top/bottom
+        const ratio = aspect1 / (aspect1 + aspect2)
+        const splitY = rect.y + rect.height * ratio
+        rect1 = { x: rect.x, y: rect.y, width: rect.width, height: rect.height * ratio }
+        rect2 = { x: rect.x, y: splitY, width: rect.width, height: rect.height * (1 - ratio) }
       }
 
-      return result.filter(row => row.length > 0)
+      // Recurse on both halves
+      return [
+        ...bspLayout(group1, rect1),
+        ...bspLayout(group2, rect2)
+      ]
     }
 
-    // Main layout calculation
+    // Main layout calculation using BSP treemap
     const calculateLayout = (images, vpWidth, vpHeight) => {
       if (!images || images.length === 0) return []
 
-      const gap = 6 // Gap between images
-      const padding = 16 // Padding around the container
-      const availableWidth = vpWidth - padding * 2
-      const availableHeight = vpHeight - padding * 2
+      const padding = 8
+      const overlap = 2 // Slight overlap for seamless edges
 
-      // Special case: single image
-      if (images.length === 1) {
-        const dims = extractDimensions(images[0])
-        const aspect = dims.width / dims.height
-        let w, h
-        if (aspect > availableWidth / availableHeight) {
-          // Image is wider than viewport ratio
-          w = availableWidth
-          h = w / aspect
-        } else {
-          // Image is taller than viewport ratio
-          h = availableHeight
-          w = h * aspect
-        }
-        return [{
-          image: images[0],
-          style: {
-            position: 'absolute',
-            left: `${padding + (availableWidth - w) / 2}px`,
-            top: `${padding + (availableHeight - h) / 2}px`,
-            width: `${w}px`,
-            height: `${h}px`
-          }
-        }]
+      // Initial rectangle (full viewport minus padding)
+      const initialRect = {
+        x: padding,
+        y: padding,
+        width: vpWidth - padding * 2,
+        height: vpHeight - padding * 2
       }
 
-      // Get aspect ratios for all images
-      const aspects = images.map(img => {
+      // Prepare image data with aspect ratios
+      const imageData = images.map(img => {
         const dims = extractDimensions(img)
-        return dims.width / dims.height
-      })
-
-      // Calculate ideal number of rows based on viewport aspect ratio
-      const totalAspect = aspects.reduce((a, b) => a + b, 0)
-      const idealRowHeight = Math.sqrt((availableWidth * availableHeight) / totalAspect)
-      let rowCount = Math.max(1, Math.round(availableHeight / idealRowHeight))
-
-      // Cap row count to number of images
-      rowCount = Math.min(rowCount, images.length)
-
-      // Partition images into rows
-      const rows = linearPartition(aspects, rowCount)
-
-      // Calculate positions for each image
-      const positioned = []
-      let y = padding
-
-      // First pass: calculate natural heights for each row
-      const rowData = rows.map(row => {
-        const rowAspect = row.reduce((sum, idx) => sum + aspects[idx], 0)
-        const gapSpace = (row.length - 1) * gap
-        const rowHeight = (availableWidth - gapSpace) / rowAspect
-        return { indices: row, height: rowHeight, aspect: rowAspect }
-      })
-
-      // Calculate total height and scale factor
-      const totalGapHeight = (rows.length - 1) * gap
-      const totalNaturalHeight = rowData.reduce((sum, r) => sum + r.height, 0)
-      const scale = (availableHeight - totalGapHeight) / totalNaturalHeight
-
-      // Second pass: apply scale and position items
-      for (const row of rowData) {
-        const scaledHeight = row.height * scale
-        let x = padding
-
-        for (const idx of row.indices) {
-          const itemWidth = scaledHeight * aspects[idx]
-          positioned.push({
-            image: images[idx],
-            style: {
-              position: 'absolute',
-              left: `${x}px`,
-              top: `${y}px`,
-              width: `${itemWidth}px`,
-              height: `${scaledHeight}px`
-            }
-          })
-          x += itemWidth + gap
+        return {
+          image: img,
+          aspect: dims.width / dims.height
         }
-        y += scaledHeight + gap
-      }
+      })
 
-      return positioned
+      // Run BSP layout algorithm
+      const placements = bspLayout(imageData, initialRect)
+
+      // Convert to positioned items with slight overlap for seamless appearance
+      return placements.map(({ image, rect }) => ({
+        image: image.image,
+        style: {
+          position: 'absolute',
+          left: `${rect.x - overlap}px`,
+          top: `${rect.y - overlap}px`,
+          width: `${rect.width + overlap * 2}px`,
+          height: `${rect.height + overlap * 2}px`
+        }
+      }))
     }
 
     // Computed layout based on current images and viewport
