@@ -79,12 +79,25 @@ export default {
       return result
     }
 
-    // Check if two rectangles overlap
-    const rectsOverlap = (r1, r2) => {
-      return !(r1.x + r1.width <= r2.x ||
-               r2.x + r2.width <= r1.x ||
-               r1.y + r1.height <= r2.y ||
-               r2.y + r2.height <= r1.y)
+    // Check if two rectangles overlap beyond allowed threshold
+    const rectsOverlap = (r1, r2, allowedOverlap = 0.15) => {
+      // Shrink rects by allowed overlap percentage for collision check
+      const shrink1 = {
+        x: r1.x + r1.width * allowedOverlap / 2,
+        y: r1.y + r1.height * allowedOverlap / 2,
+        width: r1.width * (1 - allowedOverlap),
+        height: r1.height * (1 - allowedOverlap)
+      }
+      const shrink2 = {
+        x: r2.x + r2.width * allowedOverlap / 2,
+        y: r2.y + r2.height * allowedOverlap / 2,
+        width: r2.width * (1 - allowedOverlap),
+        height: r2.height * (1 - allowedOverlap)
+      }
+      return !(shrink1.x + shrink1.width <= shrink2.x ||
+               shrink2.x + shrink2.width <= shrink1.x ||
+               shrink1.y + shrink1.height <= shrink2.y ||
+               shrink2.y + shrink2.height <= shrink1.y)
     }
 
     // Check if rectangle is within bounds
@@ -118,12 +131,58 @@ export default {
       return positions
     }
 
+    // Try to place all images at a given global scale
+    const tryPlaceAll = (images, spiralPositions, globalScale, vpWidth, vpHeight, padding, gap) => {
+      const placed = []
+
+      for (const img of images) {
+        const w = img.width * globalScale
+        const h = img.height * globalScale
+        let wasPlaced = false
+
+        for (const pos of spiralPositions) {
+          const rect = {
+            x: pos.x - w / 2,
+            y: pos.y - h / 2,
+            width: w + gap,
+            height: h + gap
+          }
+
+          if (isInBounds(rect, vpWidth, vpHeight, padding)) {
+            const overlaps = placed.some(p => rectsOverlap(rect, p.rect))
+
+            if (!overlaps) {
+              placed.push({
+                image: img.image,
+                rect,
+                style: {
+                  position: 'absolute',
+                  left: `${rect.x}px`,
+                  top: `${rect.y}px`,
+                  width: `${w}px`,
+                  height: `${h}px`
+                }
+              })
+              wasPlaced = true
+              break
+            }
+          }
+        }
+
+        if (!wasPlaced) {
+          return null // Signal that this scale doesn't work
+        }
+      }
+
+      return placed
+    }
+
     // Spiral packing from center
     const calculateLayout = (images, vpWidth, vpHeight) => {
       if (!images || images.length === 0) return []
 
       const padding = 16
-      const gap = 6
+      const gap = 2
       const centerX = vpWidth / 2
       const centerY = vpHeight / 2
 
@@ -152,11 +211,6 @@ export default {
       const areaPerImage = availableArea / count
       const baseSize = Math.sqrt(areaPerImage)
 
-      // Detect canvas orientation for sizing bias
-      const canvasAspect = vpWidth / vpHeight
-      const isLandscapeCanvas = canvasAspect > 1.2
-      const isPortraitCanvas = canvasAspect < 0.8
-
       // Size each image based on its aspect ratio
       const sized = ordered.map(img => {
         let w, h
@@ -170,14 +224,6 @@ export default {
           w = h * img.aspect
         }
 
-        // Boost size for images matching canvas orientation
-        let sizeBoost = 1.0
-        if (isLandscapeCanvas && img.aspect > 1.2) sizeBoost = 1.15
-        if (isPortraitCanvas && img.aspect < 0.8) sizeBoost = 1.15
-
-        w *= sizeBoost
-        h *= sizeBoost
-
         return {
           ...img,
           width: w,
@@ -189,56 +235,25 @@ export default {
       const maxRadius = Math.max(vpWidth, vpHeight)
       const spiralPositions = generateSpiralPositions(centerX, centerY, maxRadius, 12)
 
-      // Place images
-      const placed = []
+      // Binary search for the largest scale that fits all images
+      let minScale = 0.1
+      let maxScale = 3.0  // Allow scaling UP if images are sized too small
+      let bestResult = null
 
-      for (const img of sized) {
-        let wasPlaced = false
-        let currentWidth = img.width
-        let currentHeight = img.height
+      // Binary search with ~10 iterations for precision
+      for (let i = 0; i < 15; i++) {
+        const midScale = (minScale + maxScale) / 2
+        const result = tryPlaceAll(sized, spiralPositions, midScale, vpWidth, vpHeight, padding, gap)
 
-        // Try progressively smaller scales until image fits
-        const scaleFactors = [1.0, 0.8, 0.6, 0.5, 0.4, 0.3]
-
-        for (const scale of scaleFactors) {
-          if (wasPlaced) break
-
-          currentWidth = img.width * scale
-          currentHeight = img.height * scale
-
-          for (const pos of spiralPositions) {
-            const rect = {
-              x: pos.x - currentWidth / 2,
-              y: pos.y - currentHeight / 2,
-              width: currentWidth + gap,
-              height: currentHeight + gap
-            }
-
-            // Check bounds and overlaps
-            if (isInBounds(rect, vpWidth, vpHeight, padding)) {
-              const overlaps = placed.some(p => rectsOverlap(rect, p.rect))
-
-              if (!overlaps) {
-                placed.push({
-                  image: img.image,
-                  rect,
-                  style: {
-                    position: 'absolute',
-                    left: `${rect.x}px`,
-                    top: `${rect.y}px`,
-                    width: `${currentWidth}px`,
-                    height: `${currentHeight}px`
-                  }
-                })
-                wasPlaced = true
-                break
-              }
-            }
-          }
+        if (result !== null) {
+          bestResult = result
+          minScale = midScale  // Try larger
+        } else {
+          maxScale = midScale  // Try smaller
         }
       }
 
-      return placed
+      return bestResult || []
     }
 
     // Computed layout based on current images and viewport
