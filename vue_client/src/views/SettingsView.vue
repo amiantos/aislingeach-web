@@ -80,30 +80,38 @@
 
             <!-- Regular User Info -->
             <template v-else>
-              <!-- Basic Info -->
-              <div class="info-group">
-                <h3 class="info-group-title">Profile</h3>
-                <div class="info-row">
-                  <span class="label">Username:</span>
-                  <span class="value">{{ userInfo.username }}</span>
-                </div>
-                <div class="info-row" v-if="userInfo.account_age">
-                  <span class="label">Account Age:</span>
-                  <span class="value">{{ Math.floor(userInfo.account_age / 86400) }} days</span>
-                </div>
-                <div class="info-row">
-                  <span class="label">Status:</span>
-                  <div class="status-badges">
-                    <span class="badge badge-trusted" v-if="userInfo.trusted">Trusted</span>
-                    <span class="badge badge-moderator" v-if="userInfo.moderator">Moderator</span>
-                    <span class="badge badge-customizer" v-if="userInfo.customizer">Customizer</span>
-                    <span class="badge badge-service" v-if="userInfo.service">Service Account</span>
-                    <span class="badge badge-education" v-if="userInfo.education">Education</span>
-                    <span class="badge badge-special" v-if="userInfo.special">Special</span>
+              <!-- Stats Grid -->
+              <div class="info-group stats-section">
+                <div class="stats-grid">
+                  <div class="stat-card">
+                    <span class="stat-value">{{ userInfo.username }}</span>
+                    <span class="stat-label">Username</span>
+                  </div>
+                  <div class="stat-card" v-if="userInfo.account_age">
+                    <span class="stat-value">{{ Math.floor(userInfo.account_age / 86400) }}</span>
+                    <span class="stat-label">Days Old</span>
+                  </div>
+                  <div class="stat-card">
+                    <span class="stat-value">{{ userInfo.trusted ? 'Yes' : 'No' }}</span>
+                    <span class="stat-label">Trusted</span>
+                  </div>
+                  <div class="stat-card">
+                    <span class="stat-value">{{ userInfo.kudos?.toLocaleString() || 0 }}</span>
+                    <span class="stat-label">Kudos</span>
+                  </div>
+                  <div class="stat-card">
+                    <span class="stat-value">{{ userInfo.records?.request?.image?.toLocaleString() || 0 }}</span>
+                    <span class="stat-label">Images Requested</span>
+                  </div>
+                  <div class="stat-card" v-if="userInfo.records?.fulfillment?.image">
+                    <span class="stat-value">{{ userInfo.records.fulfillment.image?.toLocaleString() || 0 }}</span>
+                    <span class="stat-label">Images Fulfilled</span>
                   </div>
                 </div>
+              </div>
 
-                <!-- Management Buttons -->
+              <!-- Action Buttons -->
+              <div class="info-group action-buttons-section">
                 <div class="management-buttons">
                   <button @click="goToWorkers" class="btn btn-secondary btn-manage" v-if="userInfo.worker_count > 0">
                     <i class="fa-solid fa-server"></i> Manage Workers
@@ -112,7 +120,6 @@
                     <i class="fa-solid fa-key"></i> Manage Shared Keys
                   </button>
                 </div>
-                <!-- Refresh Sign Out  Buttons -->
                 <div class="management-buttons">
                   <button @click="refreshUserInfo" class="btn btn-secondary btn-manage" :disabled="loadingUserInfo">
                     {{ loadingUserInfo ? 'Refreshing...' : 'Refresh Info' }}
@@ -120,79 +127,6 @@
                   <button @click="showSignOutModal" class="btn btn-secondary btn-manage btn-sign-out">
                     Sign Out
                   </button>
-                </div>
-              </div>
-
-              <!-- Kudos Information -->
-              <div class="info-group">
-                <h3 class="info-group-title">Kudos</h3>
-                <div class="info-row">
-                  <span class="label">Total Kudos:</span>
-                  <span class="value kudos">{{ userInfo.kudos?.toLocaleString() || 0 }}</span>
-                </div>
-                <div v-if="userInfo.kudos_details" class="info-subgroup">
-                  <div class="info-row info-row-small">
-                    <span class="label">Accumulated:</span>
-                    <span class="value">{{ userInfo.kudos_details.accumulated?.toLocaleString() || 0 }}</span>
-                  </div>
-                  <div class="info-row info-row-small">
-                    <span class="label">Received:</span>
-                    <span class="value">{{ userInfo.kudos_details.received?.toLocaleString() || 0 }}</span>
-                  </div>
-                  <div class="info-row info-row-small" v-if="userInfo.kudos_details.gifted">
-                    <span class="label">Gifted:</span>
-                    <span class="value">{{ userInfo.kudos_details.gifted?.toLocaleString() || 0 }}</span>
-                  </div>
-                  <div class="info-row info-row-small" v-if="userInfo.kudos_details.donated">
-                    <span class="label">Donated:</span>
-                    <span class="value">{{ userInfo.kudos_details.donated?.toLocaleString() || 0 }}</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Usage Stats -->
-              <div class="info-group">
-                <h3 class="info-group-title">Usage</h3>
-                <div class="info-row">
-                  <span class="label">Image Requests:</span>
-                  <span class="value">{{ userInfo.records?.request?.image?.toLocaleString() || 0 }}</span>
-                </div>
-                <div class="info-row" v-if="userInfo.records?.request?.text">
-                  <span class="label">Text Requests:</span>
-                  <span class="value">{{ userInfo.records.request.text?.toLocaleString() || 0 }}</span>
-                </div>
-                <div class="info-row">
-                  <span class="label">Megapixelsteps:</span>
-                  <span class="value">{{ userInfo.records?.usage?.megapixelsteps?.toLocaleString() || 0 }}</span>
-                </div>
-                <div class="info-row" v-if="userInfo.records?.usage?.tokens">
-                  <span class="label">Tokens:</span>
-                  <span class="value">{{ userInfo.records.usage.tokens?.toLocaleString() || 0 }}</span>
-                </div>
-                <div class="info-row" v-if="userInfo.concurrency">
-                  <span class="label">Concurrency:</span>
-                  <span class="value">{{ userInfo.concurrency }}</span>
-                </div>
-              </div>
-
-              <!-- Contribution Stats -->
-              <div class="info-group" v-if="userInfo.records?.contribution">
-                <h3 class="info-group-title">Contributions</h3>
-                <div class="info-row">
-                  <span class="label">Image Fulfillments:</span>
-                  <span class="value">{{ userInfo.records.fulfillment?.image?.toLocaleString() || 0 }}</span>
-                </div>
-                <div class="info-row" v-if="userInfo.records?.fulfillment?.text">
-                  <span class="label">Text Fulfillments:</span>
-                  <span class="value">{{ userInfo.records.fulfillment.text?.toLocaleString() || 0 }}</span>
-                </div>
-                <div class="info-row">
-                  <span class="label">Megapixelsteps:</span>
-                  <span class="value">{{ userInfo.records.contribution?.megapixelsteps?.toLocaleString() || 0 }}</span>
-                </div>
-                <div class="info-row" v-if="userInfo.records?.contribution?.tokens">
-                  <span class="label">Tokens:</span>
-                  <span class="value">{{ userInfo.records.contribution.tokens?.toLocaleString() || 0 }}</span>
                 </div>
               </div>
             </template>
@@ -1264,6 +1198,54 @@ export default {
   font-size: 0.9rem;
 }
 
+/* Stats Grid */
+.stats-section {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+.stat-card {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  padding: 0.75rem;
+  text-align: center;
+  min-width: 0;
+}
+
+.stat-value {
+  display: block;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: 0.25rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stat-label {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* Action Buttons Section */
+.action-buttons-section {
+  border-bottom: none;
+  padding-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
 .status-badges {
   display: flex;
   flex-wrap: wrap;
@@ -1311,7 +1293,6 @@ export default {
 .management-buttons {
   display: flex;
   gap: 1rem;
-  padding-top: 1rem;
 }
 
 .btn-manage {
@@ -1375,6 +1356,10 @@ export default {
 
   .form-group {
     flex-direction: column;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 
   .management-buttons {
