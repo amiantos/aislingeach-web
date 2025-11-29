@@ -39,41 +39,45 @@
           <div v-else-if="userInfo" class="account-info-expanded">
             <!-- Shared Key User Info -->
             <template v-if="isSharedKeyUser && currentSharedKeyInfo">
-              <div class="info-group">
-                <h3 class="info-group-title">Shared Key</h3>
-                <div class="info-row">
-                  <span class="label">Key Name:</span>
-                  <span class="value">{{ currentSharedKeyInfo.name }}</span>
-                </div>
-                <div class="info-row">
-                  <span class="label">Key From:</span>
-                  <span class="value">{{ currentSharedKeyInfo.username }}</span>
-                </div>
-                <div class="info-row">
-                  <span class="label">Kudos Remaining:</span>
-                  <span class="value kudos">
-                    {{ currentSharedKeyInfo.kudos === -1 ? 'Unlimited' : (currentSharedKeyInfo.kudos?.toLocaleString() || 0) }}
-                  </span>
+              <!-- Stats Grid -->
+              <div class="info-group stats-section">
+                <div class="stats-grid">
+                  <div class="stat-card">
+                    <span class="stat-value">{{ currentSharedKeyInfo.name }}</span>
+                    <span class="stat-label">Key Name</span>
+                  </div>
+                  <div class="stat-card">
+                    <span class="stat-value">{{ currentSharedKeyInfo.username }}</span>
+                    <span class="stat-label">Key From</span>
+                  </div>
+                  <div class="stat-card">
+                    <span class="stat-value">{{ currentSharedKeyInfo.kudos === -1 ? 'Unlimited' : (currentSharedKeyInfo.kudos?.toLocaleString() || 0) }}</span>
+                    <span class="stat-label">Kudos</span>
+                  </div>
+                  <div class="stat-card">
+                    <span class="stat-value">{{ currentSharedKeyInfo.max_image_pixels === -1 ? 'Unlimited' : (currentSharedKeyInfo.max_image_pixels?.toLocaleString() || 'Unlimited') }}</span>
+                    <span class="stat-label">Max Pixels</span>
+                  </div>
+                  <div class="stat-card">
+                    <span class="stat-value">{{ currentSharedKeyInfo.max_image_steps === -1 ? 'Unlimited' : (currentSharedKeyInfo.max_image_steps || 'Unlimited') }}</span>
+                    <span class="stat-label">Max Steps</span>
+                  </div>
+                  <div class="stat-card">
+                    <span class="stat-value">{{ currentSharedKeyInfo.expiry ? new Date(currentSharedKeyInfo.expiry).toLocaleDateString() : 'Never' }}</span>
+                    <span class="stat-label">Expires</span>
+                  </div>
                 </div>
               </div>
 
-              <div class="info-group">
-                <h3 class="info-group-title">Limits</h3>
-                <div class="info-row">
-                  <span class="label">Max Image Pixels:</span>
-                  <span class="value">{{ currentSharedKeyInfo.max_image_pixels === -1 ? 'Unlimited' : (currentSharedKeyInfo.max_image_pixels?.toLocaleString() || 'Unlimited') }}</span>
-                </div>
-                <div class="info-row">
-                  <span class="label">Max Image Steps:</span>
-                  <span class="value">{{ currentSharedKeyInfo.max_image_steps === -1 ? 'Unlimited' : (currentSharedKeyInfo.max_image_steps?.toLocaleString() || 'Unlimited') }}</span>
-                </div>
-                <div class="info-row">
-                  <span class="label">Max Text Tokens:</span>
-                  <span class="value">{{ currentSharedKeyInfo.max_text_tokens === -1 ? 'Unlimited' : (currentSharedKeyInfo.max_text_tokens?.toLocaleString() || 'Unlimited') }}</span>
-                </div>
-                <div class="info-row">
-                  <span class="label">Expires:</span>
-                  <span class="value">{{ currentSharedKeyInfo.expiry ? new Date(currentSharedKeyInfo.expiry).toLocaleDateString() : 'Never' }}</span>
+              <!-- Action Buttons -->
+              <div class="info-group action-buttons-section">
+                <div class="management-buttons">
+                  <button @click="refreshUserInfo" class="btn btn-secondary btn-manage" :disabled="loadingUserInfo">
+                    {{ loadingUserInfo ? 'Refreshing...' : 'Refresh Info' }}
+                  </button>
+                  <button @click="showSignOutModal" class="btn btn-secondary btn-manage btn-sign-out">
+                    Sign Out
+                  </button>
                 </div>
               </div>
             </template>
