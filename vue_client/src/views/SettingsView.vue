@@ -222,9 +222,6 @@
         <div class="section">
           <h2>Hidden Gallery Protection</h2>
           <div v-if="settings.hasPinProtection" class="pin-status">
-            <p class="help-text">
-              Protect your hidden images with a 4-digit PIN.
-            </p>
             <div class="status-indicator">
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                 <circle cx="10" cy="10" r="9" stroke="#587297" stroke-width="2"/>
