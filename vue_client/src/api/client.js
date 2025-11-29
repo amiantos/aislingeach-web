@@ -35,6 +35,10 @@ export const requestsApi = {
 
   getQueueStatus() {
     return apiClient.get('/requests/queue/status')
+  },
+
+  retry(id) {
+    return apiClient.post(`/requests/${id}/retry`)
   }
 }
 

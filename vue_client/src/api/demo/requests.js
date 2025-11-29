@@ -305,6 +305,34 @@ export const requestsApi = {
     await db.clear('requests')
   },
 
+  async retry(id) {
+    // Get the failed request
+    const request = await db.get('requests', id)
+    if (!request) {
+      throw new Error('Request not found')
+    }
+    if (request.status !== 'failed') {
+      throw new Error('Only failed requests can be retried')
+    }
+
+    // Parse the stored full_request to get original params
+    let params
+    try {
+      params = JSON.parse(request.full_request)
+    } catch (parseError) {
+      throw new Error('Failed to parse original request data')
+    }
+
+    // Delete the failed request
+    await db.remove('requests', id)
+
+    // Create a new request with the same data
+    return this.create({
+      prompt: request.prompt,
+      params
+    })
+  },
+
   async getQueueStatus() {
     const requests = await db.getAll('requests')
     const activeRequests = requests.filter(r =>

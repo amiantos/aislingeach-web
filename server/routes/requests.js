@@ -231,6 +231,52 @@ router.get('/queue/status', (req, res) => {
   }
 });
 
+// Retry a failed request
+router.post('/:id/retry', (req, res) => {
+  try {
+    const requestId = req.params.id;
+
+    // Fetch the original request
+    const originalRequest = HordeRequest.findById(requestId);
+    if (!originalRequest) {
+      return res.status(404).json({ error: 'Request not found' });
+    }
+
+    // Only allow retrying failed requests
+    if (originalRequest.status !== 'failed') {
+      return res.status(400).json({ error: 'Only failed requests can be retried' });
+    }
+
+    // Parse the stored full_request to get original params
+    let params;
+    try {
+      params = JSON.parse(originalRequest.full_request);
+    } catch (parseError) {
+      return res.status(500).json({ error: 'Failed to parse original request data' });
+    }
+
+    // Validate params structure
+    const validationErrors = validateRequestParams(params);
+    if (validationErrors.length > 0) {
+      return res.status(400).json({ error: 'Invalid stored params', details: validationErrors });
+    }
+
+    // Create a new request with the same data
+    const newRequest = queueManager.addRequest({
+      prompt: originalRequest.prompt,
+      params
+    });
+
+    // Delete the failed request
+    HordeRequest.delete(requestId);
+
+    res.status(201).json(newRequest);
+  } catch (error) {
+    console.error('Error retrying request:', error);
+    res.status(500).json({ error: 'Failed to retry request' });
+  }
+});
+
 // Estimate kudos cost for a request (dry run)
 router.post('/estimate', async (req, res) => {
   try {

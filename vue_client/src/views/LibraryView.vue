@@ -24,6 +24,7 @@
             class="request-card-item"
             @view-images="viewRequestImages"
             @delete="showDeleteModal"
+            @retry="handleRetry"
           />
 
           <button
@@ -1082,6 +1083,19 @@ export default {
       deleteModalVisible.value = true
     }
 
+    const handleRetry = async (requestId) => {
+      try {
+        const response = await requestsApi.retry(requestId)
+        // The failed request is deleted and a new one created
+        // Remove the old request from the list and add the new one
+        requests.value = requests.value.filter(r => r.uuid !== requestId)
+        requests.value.unshift(response.data)
+      } catch (error) {
+        console.error('Error retrying request:', error)
+        alert('Failed to retry request. Please try again.')
+      }
+    }
+
     const confirmDelete = async (imageAction) => {
       if (!requestToDelete.value) return
 
@@ -1447,6 +1461,7 @@ export default {
       deletableRequests,
       viewRequestImages,
       showDeleteModal,
+      handleRetry,
       confirmDelete,
       deleteModalVisible,
       deleteAllModalVisible,

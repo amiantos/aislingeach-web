@@ -38,6 +38,14 @@
             View Images
           </button>
           <button
+            v-if="request.status === 'failed'"
+            @click="$emit('retry', request.uuid)"
+            class="btn btn-secondary"
+          >
+            <i class="fa-solid fa-rotate-right"></i>
+            Retry
+          </button>
+          <button
             @click="$emit('delete', request.uuid)"
             class="btn btn-icon btn-delete"
             title="Delete request"
@@ -67,7 +75,7 @@ export default {
       required: true
     }
   },
-  emits: ['view-images', 'delete'],
+  emits: ['view-images', 'delete', 'retry'],
   setup(props) {
     const thumbnailUrl = ref(null)
     const actualImageCount = ref(null)
@@ -316,6 +324,20 @@ export default {
 
 .btn-primary:hover {
   background: var(--color-btn-primary-hover);
+}
+
+.btn-secondary {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-secondary:hover {
+  background: var(--color-bg-elevated);
+  border-color: var(--color-border-light);
 }
 
 .btn-delete {
