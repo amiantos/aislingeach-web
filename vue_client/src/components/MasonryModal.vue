@@ -65,195 +65,119 @@ export default {
       return { width: 512, height: 512 }
     }
 
-    // Interleave arrays for variety (landscape, portrait, square, repeat...)
-    const interleaveArrays = (...arrays) => {
-      const result = []
-      const maxLen = Math.max(...arrays.map(a => a.length))
-      for (let i = 0; i < maxLen; i++) {
-        for (const arr of arrays) {
-          if (i < arr.length) {
-            result.push(arr[i])
-          }
-        }
-      }
-      return result
-    }
-
-    // Check if two rectangles overlap beyond allowed threshold
-    const rectsOverlap = (r1, r2, allowedOverlap = 0.15) => {
-      // Shrink rects by allowed overlap percentage for collision check
-      const shrink1 = {
-        x: r1.x + r1.width * allowedOverlap / 2,
-        y: r1.y + r1.height * allowedOverlap / 2,
-        width: r1.width * (1 - allowedOverlap),
-        height: r1.height * (1 - allowedOverlap)
-      }
-      const shrink2 = {
-        x: r2.x + r2.width * allowedOverlap / 2,
-        y: r2.y + r2.height * allowedOverlap / 2,
-        width: r2.width * (1 - allowedOverlap),
-        height: r2.height * (1 - allowedOverlap)
-      }
-      return !(shrink1.x + shrink1.width <= shrink2.x ||
-               shrink2.x + shrink2.width <= shrink1.x ||
-               shrink1.y + shrink1.height <= shrink2.y ||
-               shrink2.y + shrink2.height <= shrink1.y)
-    }
-
-    // Check if rectangle is within bounds
-    const isInBounds = (rect, width, height, padding) => {
-      return rect.x >= padding &&
-             rect.y >= padding &&
-             rect.x + rect.width <= width - padding &&
-             rect.y + rect.height <= height - padding
-    }
-
-    // Generate positions in spiral pattern from center
-    const generateSpiralPositions = (centerX, centerY, maxRadius, step = 15) => {
-      const positions = [{ x: centerX, y: centerY }]
-
-      let radius = step
-      while (radius < maxRadius) {
-        // Number of points at this radius (more points as radius increases)
-        const circumference = 2 * Math.PI * radius
-        const numPoints = Math.max(8, Math.floor(circumference / step))
-
-        for (let i = 0; i < numPoints; i++) {
-          const angle = (i / numPoints) * Math.PI * 2
-          positions.push({
-            x: centerX + Math.cos(angle) * radius,
-            y: centerY + Math.sin(angle) * radius
-          })
-        }
-        radius += step
-      }
-
-      return positions
-    }
-
-    // Try to place all images at a given global scale
-    const tryPlaceAll = (images, spiralPositions, globalScale, vpWidth, vpHeight, padding, gap) => {
-      const placed = []
-
-      for (const img of images) {
-        const w = img.width * globalScale
-        const h = img.height * globalScale
-        let wasPlaced = false
-
-        for (const pos of spiralPositions) {
-          const rect = {
-            x: pos.x - w / 2,
-            y: pos.y - h / 2,
-            width: w + gap,
-            height: h + gap
-          }
-
-          if (isInBounds(rect, vpWidth, vpHeight, padding)) {
-            const overlaps = placed.some(p => rectsOverlap(rect, p.rect))
-
-            if (!overlaps) {
-              placed.push({
-                image: img.image,
-                rect,
-                style: {
-                  position: 'absolute',
-                  left: `${rect.x}px`,
-                  top: `${rect.y}px`,
-                  width: `${w}px`,
-                  height: `${h}px`
-                }
-              })
-              wasPlaced = true
-              break
-            }
-          }
-        }
-
-        if (!wasPlaced) {
-          return null // Signal that this scale doesn't work
-        }
-      }
-
-      return placed
-    }
-
-    // Spiral packing from center
+    // Treemap layout using squarified algorithm
     const calculateLayout = (images, vpWidth, vpHeight) => {
       if (!images || images.length === 0) return []
 
       const padding = 16
       const gap = 2
-      const centerX = vpWidth / 2
-      const centerY = vpHeight / 2
 
-      // Get image data with aspects
+      // Get image data with aspects and assign weights
       const imageData = images.map(img => {
         const dims = extractDimensions(img)
+        const aspect = dims.width / dims.height
         return {
           image: img,
-          aspect: dims.width / dims.height
+          aspect,
+          // Weight based on area - all images get equal weight
+          weight: 1
         }
       })
 
-      // Categorize by aspect ratio
-      const landscape = imageData.filter(img => img.aspect > 1.2)
-      const portrait = imageData.filter(img => img.aspect < 0.8)
-      const square = imageData.filter(img => img.aspect >= 0.8 && img.aspect <= 1.2)
+      const totalWeight = imageData.reduce((sum, img) => sum + img.weight, 0)
 
-      // Interleave for variety
-      const ordered = interleaveArrays(landscape, portrait, square)
+      // Recursive treemap subdivision
+      const subdivide = (items, rect) => {
+        if (items.length === 0) return []
+        if (items.length === 1) {
+          const item = items[0]
+          return [{
+            image: item.image,
+            aspect: item.aspect,
+            rect: {
+              x: rect.x + gap / 2,
+              y: rect.y + gap / 2,
+              width: rect.width - gap,
+              height: rect.height - gap
+            }
+          }]
+        }
 
-      const count = ordered.length
-      if (count === 0) return []
+        // Determine split direction based on rect shape
+        const isWide = rect.width > rect.height
 
-      // Calculate base size - aim to fill ~70% of viewport area
-      const availableArea = (vpWidth - padding * 2) * (vpHeight - padding * 2) * 0.7
-      const areaPerImage = availableArea / count
-      const baseSize = Math.sqrt(areaPerImage)
+        // Find best split point (try to make squares)
+        const itemWeightSum = items.reduce((sum, img) => sum + img.weight, 0)
+        let splitWeight = 0
+        let splitIndex = 0
+        let bestAspectRatio = Infinity
 
-      // Size each image based on its aspect ratio
-      const sized = ordered.map(img => {
-        let w, h
+        for (let i = 0; i < items.length - 1; i++) {
+          splitWeight += items[i].weight
+          const ratio1 = splitWeight / itemWeightSum
+          const ratio2 = 1 - ratio1
 
-        // Base dimensions from aspect ratio
-        if (img.aspect >= 1) {
-          w = baseSize * Math.sqrt(img.aspect)
-          h = w / img.aspect
+          // Calculate aspect ratios of resulting rects
+          let aspect1, aspect2
+          if (isWide) {
+            aspect1 = (rect.width * ratio1) / rect.height
+            aspect2 = (rect.width * ratio2) / rect.height
+          } else {
+            aspect1 = rect.width / (rect.height * ratio1)
+            aspect2 = rect.width / (rect.height * ratio2)
+          }
+
+          // Prefer splits that create more square-ish regions
+          const maxAspect = Math.max(aspect1, aspect2, 1/aspect1, 1/aspect2)
+          if (maxAspect < bestAspectRatio) {
+            bestAspectRatio = maxAspect
+            splitIndex = i + 1
+          }
+        }
+
+        const leftItems = items.slice(0, splitIndex)
+        const rightItems = items.slice(splitIndex)
+        const leftWeight = leftItems.reduce((sum, img) => sum + img.weight, 0)
+        const splitRatio = leftWeight / itemWeightSum
+
+        let leftRect, rightRect
+        if (isWide) {
+          const splitX = rect.x + rect.width * splitRatio
+          leftRect = { x: rect.x, y: rect.y, width: rect.width * splitRatio, height: rect.height }
+          rightRect = { x: splitX, y: rect.y, width: rect.width * (1 - splitRatio), height: rect.height }
         } else {
-          h = baseSize / Math.sqrt(img.aspect)
-          w = h * img.aspect
+          const splitY = rect.y + rect.height * splitRatio
+          leftRect = { x: rect.x, y: rect.y, width: rect.width, height: rect.height * splitRatio }
+          rightRect = { x: rect.x, y: splitY, width: rect.width, height: rect.height * (1 - splitRatio) }
         }
 
-        return {
-          ...img,
-          width: w,
-          height: h
-        }
-      })
-
-      // Generate spiral positions
-      const maxRadius = Math.max(vpWidth, vpHeight)
-      const spiralPositions = generateSpiralPositions(centerX, centerY, maxRadius, 12)
-
-      // Binary search for the largest scale that fits all images
-      let minScale = 0.1
-      let maxScale = 3.0  // Allow scaling UP if images are sized too small
-      let bestResult = null
-
-      // Binary search with ~10 iterations for precision
-      for (let i = 0; i < 15; i++) {
-        const midScale = (minScale + maxScale) / 2
-        const result = tryPlaceAll(sized, spiralPositions, midScale, vpWidth, vpHeight, padding, gap)
-
-        if (result !== null) {
-          bestResult = result
-          minScale = midScale  // Try larger
-        } else {
-          maxScale = midScale  // Try smaller
-        }
+        return [
+          ...subdivide(leftItems, leftRect),
+          ...subdivide(rightItems, rightRect)
+        ]
       }
 
-      return bestResult || []
+      // Start with viewport minus padding
+      const startRect = {
+        x: padding,
+        y: padding,
+        width: vpWidth - padding * 2,
+        height: vpHeight - padding * 2
+      }
+
+      const cells = subdivide(imageData, startRect)
+
+      // Convert to layout format
+      return cells.map(cell => ({
+        image: cell.image,
+        style: {
+          position: 'absolute',
+          left: `${cell.rect.x}px`,
+          top: `${cell.rect.y}px`,
+          width: `${cell.rect.width}px`,
+          height: `${cell.rect.height}px`
+        }
+      }))
     }
 
     // Computed layout based on current images and viewport
