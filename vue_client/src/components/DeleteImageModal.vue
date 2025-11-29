@@ -26,10 +26,32 @@
   </div>
 </template>
 
+<script setup>
+import { onMounted, onUnmounted } from 'vue'
+
+const emit = defineEmits(['close', 'delete'])
+
+const handleKeydown = (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault()
+    emit('delete')
+  } else if (e.key === 'Escape') {
+    emit('close')
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', handleKeydown)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeydown)
+})
+</script>
+
 <script>
 export default {
-  name: 'DeleteImageModal',
-  emits: ['close', 'delete']
+  name: 'DeleteImageModal'
 }
 </script>
 

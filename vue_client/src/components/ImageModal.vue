@@ -186,14 +186,24 @@
                     <span>Response</span>
                   </button>
                 </div>
-                <a
-                  :href="imageUrl"
-                  :download="`dreamers-guild-${image.uuid}.png`"
-                  class="btn-action btn-primary"
-                >
-                  <i class="fa-solid fa-download"></i>
-                  <span>Download</span>
-                </a>
+                <div class="action-row">
+                  <button
+                    @click="copyImageToClipboard"
+                    class="btn-action"
+                    title="Copy image to clipboard"
+                  >
+                    <i class="fa-solid fa-copy"></i>
+                    <span>{{ copied ? 'Copied!' : 'Copy' }}</span>
+                  </button>
+                  <a
+                    :href="imageUrl"
+                    :download="`dreamers-guild-${image.uuid}.png`"
+                    class="btn-action btn-primary"
+                  >
+                    <i class="fa-solid fa-download"></i>
+                    <span>Download</span>
+                  </a>
+                </div>
                 <button
                   @click="showDeleteModal = true"
                   class="btn-action btn-delete"
@@ -598,6 +608,11 @@ export default {
     }
 
     const handleKeydown = (e) => {
+      // Don't handle shortcuts when delete modal is open
+      if (showDeleteModal.value) {
+        return
+      }
+
       if (e.key === 'Escape') {
         if (showDetails.value) {
           closeDetails()
@@ -616,6 +631,50 @@ export default {
         navigateToImage(0)
       } else if (e.key === 'End' && showNavigation.value) {
         navigateToImage(props.images.length - 1)
+      } else if (e.key === 'Backspace' && !isProtected.value) {
+        e.preventDefault()
+        showDeleteModal.value = true
+      } else if (e.key.toLowerCase() === 'f' && !isProtected.value) {
+        toggleFavorite()
+      } else if (e.key.toLowerCase() === 'h' && !isProtected.value) {
+        toggleHidden()
+      }
+    }
+
+    const copyImageToClipboard = async () => {
+      try {
+        // Create a promise that loads and converts image to PNG
+        const pngBlobPromise = (async () => {
+          const img = new Image()
+          img.crossOrigin = 'anonymous'
+
+          await new Promise((resolve, reject) => {
+            img.onload = resolve
+            img.onerror = reject
+            img.src = imageUrl.value
+          })
+
+          const canvas = document.createElement('canvas')
+          canvas.width = img.naturalWidth
+          canvas.height = img.naturalHeight
+          const ctx = canvas.getContext('2d')
+          ctx.drawImage(img, 0, 0)
+
+          return new Promise(resolve => canvas.toBlob(resolve, 'image/png'))
+        })()
+
+        // Pass the promise directly to ClipboardItem (required for Safari)
+        await navigator.clipboard.write([
+          new ClipboardItem({ 'image/png': pngBlobPromise })
+        ])
+
+        copied.value = true
+        setTimeout(() => {
+          copied.value = false
+        }, 2000)
+      } catch (error) {
+        console.error('Failed to copy image to clipboard:', error)
+        alert('Failed to copy image to clipboard')
       }
     }
 
@@ -682,6 +741,7 @@ export default {
       showDetailsView,
       closeDetails,
       copyToClipboard,
+      copyImageToClipboard,
       copied,
       copyButtonText,
       showDeleteModal,
