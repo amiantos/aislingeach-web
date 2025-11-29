@@ -646,12 +646,24 @@ export default {
         // Create a promise that loads and converts image to PNG
         const pngBlobPromise = (async () => {
           const img = new Image()
-          img.crossOrigin = 'anonymous'
+
+          // Resolve the image URL (handles demo-blob:// URLs)
+          let srcUrl = imageUrl.value
+          if (srcUrl?.startsWith('demo-blob://')) {
+            const { resolveBlobUrl } = await import('@api')
+            srcUrl = await resolveBlobUrl(srcUrl)
+            if (!srcUrl) {
+              throw new Error('Failed to resolve image URL')
+            }
+          } else {
+            // Only set crossOrigin for remote URLs, not blob URLs
+            img.crossOrigin = 'anonymous'
+          }
 
           await new Promise((resolve, reject) => {
             img.onload = resolve
             img.onerror = reject
-            img.src = imageUrl.value
+            img.src = srcUrl
           })
 
           const canvas = document.createElement('canvas')
