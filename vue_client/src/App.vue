@@ -554,7 +554,7 @@ export default {
   top: 0;
   left: 0;
   right: 0;
-  z-index: 9999;
+  z-index: var(--z-index-sticky);
   background: linear-gradient(135deg, #ff6b6b, #ffa500);
   color: white;
   padding: 0.5rem 1rem;
